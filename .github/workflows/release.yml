@@ -39,7 +39,7 @@ jobs:
           lfs: true
           persist-credentials: false
 
-      - uses: dxcufgb/foundry-module-ci/release@e98d175606a94cda4734fd1510096153c40d3ee8 # v1.1.0
+      - uses: dxcufgb/foundry-module-ci/release@642249c2b44f1071668474694cbfee13a47959b2 # v1.2.0
         with:
           version: ${{ inputs.version }}
           github-token: ${{ github.token }}
