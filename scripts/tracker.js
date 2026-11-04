@@ -419,12 +419,47 @@ export function place() {
   let target = saved && Number.isFinite(saved.x) ? { x: saved.x, y: saved.y } : defaultAnchor();
   if (saved?.centerX || saved?.centerY) {
     // Snapped to the middle of the screen: stay centred whatever the tracker's size now.
-    const rect = element.getBoundingClientRect();
+    const pivot = tokenPivot();
     const centre = centreLines();
-    if (saved.centerX) target.x = centre.x - rect.width / 2;
-    if (saved.centerY) target.y = centre.y - rect.height / 2;
+    if (saved.centerX) target.x = centre.x - pivot.x;
+    if (saved.centerY) target.y = centre.y - pivot.y;
   }
   moveTo(clampAnchor(target, viewport(), GRIP));
+}
+
+/**
+ * The point that goes on a centre line, in screen pixels from the tracker's top-left corner: along the tokens, the
+ * middle token's centre (with an even number, halfway between the two middle ones; the semicircle: its centre slot),
+ * so the middle token is split in half by the line; across the tokens, the middle of the tracker. Uses layout
+ * offsets, so tokens that are still sliding don't move it.
+ */
+function tokenPivot() {
+  const rect = element.getBoundingClientRect();
+  const sx = element.offsetWidth ? rect.width / element.offsetWidth : 1;
+  const sy = element.offsetHeight ? rect.height / element.offsetHeight : 1;
+  const middleOf = el => {
+    let x = el.offsetWidth / 2;
+    let y = el.offsetHeight / 2;
+    for (let e = el; e && e !== element; e = e.offsetParent) {
+      x += e.offsetLeft;
+      y += e.offsetTop;
+    }
+    return { x, y };
+  };
+  let mid = null;
+  const arc = element.querySelector(".dxit-list.dxit-arc");
+  if (arc) mid = middleOf(arc);
+  else {
+    const chips = [...element.querySelectorAll(".dxit-chip:not(.dxit-chip--leaving)")];
+    if (chips.length) {
+      const a = middleOf(chips[Math.floor((chips.length - 1) / 2)]);
+      const b = middleOf(chips[Math.floor(chips.length / 2)]);
+      mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+  }
+  const box = { x: rect.width / 2, y: rect.height / 2 };
+  if (!mid) return box;
+  return element.classList.contains("dxit--vertical") ? { x: box.x, y: mid.y * sy } : { x: mid.x * sx, y: box.y };
 }
 
 /** The dashed centre lines shown while a dragged tracker is snapped to the middle of the screen. */
@@ -908,7 +943,9 @@ function onGripDown(event) {
   const lines = guides();
   const move = e => {
     const size = element.getBoundingClientRect();
-    const free = { x: base.x + e.clientX - start.x, y: base.y + e.clientY - start.y, width: size.width, height: size.height };
+    const pivot = tokenPivot();
+    const free = { x: base.x + e.clientX - start.x, y: base.y + e.clientY - start.y, width: size.width, height: size.height,
+      pivotX: pivot.x, pivotY: pivot.y };
     const centre = centreLines();
     lines.v.style.left = `${centre.x}px`;
     lines.h.style.top = `${centre.y}px`;

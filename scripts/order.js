@@ -272,7 +272,10 @@ export function clampAnchor(point, viewport, grip = 24) {
 /**
  * Snaps a dragged tracker to the middle of the screen: when its centre comes within `threshold` pixels of the
  * screen's vertical centre line, it is centred left to right; likewise top to bottom for the horizontal centre line.
- * @param {{x: number, y: number, width: number, height: number}} box  the tracker's top-left corner and size
+ * The point that goes on the line is `pivotX` / `pivotY` from the box's corner (default: the box's middle; the tracker
+ * passes the middle of its tokens, so the middle token is split by the line).
+ * @param {{x: number, y: number, width: number, height: number, pivotX?: number, pivotY?: number}} box
+ *   the tracker's top-left corner and size
  * @param {{width: number, height: number}} viewport
  * @param {number} threshold
  * @param {{x?: number, y?: number}} centre  the centre lines (default: the middle of the viewport)
@@ -281,11 +284,13 @@ export function clampAnchor(point, viewport, grip = 24) {
 export function snapToCentre(box, viewport, threshold = 16, centre = {}) {
   const midX = Number.isFinite(centre.x) ? centre.x : viewport.width / 2;
   const midY = Number.isFinite(centre.y) ? centre.y : viewport.height / 2;
-  const centerX = Math.abs(box.x + box.width / 2 - midX) <= threshold;
-  const centerY = Math.abs(box.y + box.height / 2 - midY) <= threshold;
+  const px = Number.isFinite(box.pivotX) ? box.pivotX : box.width / 2;
+  const py = Number.isFinite(box.pivotY) ? box.pivotY : box.height / 2;
+  const centerX = Math.abs(box.x + px - midX) <= threshold;
+  const centerY = Math.abs(box.y + py - midY) <= threshold;
   return {
-    x: centerX ? Math.round(midX - box.width / 2) : box.x,
-    y: centerY ? Math.round(midY - box.height / 2) : box.y,
+    x: centerX ? Math.round(midX - px) : box.x,
+    y: centerY ? Math.round(midY - py) : box.y,
     centerX,
     centerY
   };

@@ -244,3 +244,10 @@ test("isRevealed: round 1 shows allies, others once their turn has come", () => 
   assert.deepEqual(seen({ started: true, round: 2, turn: 0 }), [0, 1, 2, 3, 4, 5]);
   assert.deepEqual(seen({ started: false, round: 0, turn: null }), [0, 2, 4]);
 });
+
+test("snapToCentre puts the pivot (the middle token) on the line", async () => {
+  const { snapToCentre } = await import("../scripts/order.js");
+  const vp = { width: 1000, height: 600 };
+  assert.deepEqual(snapToCentre({ x: 430, y: 40, width: 200, height: 50, pivotX: 80, pivotY: 25 }, vp),
+    { x: 420, y: 40, centerX: true, centerY: false });
+});

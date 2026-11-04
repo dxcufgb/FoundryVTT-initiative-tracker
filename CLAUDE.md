@@ -63,7 +63,9 @@ settings, so every player sets it up their own way. No build step, no npm depend
   `Combat#nextTurn` / `previousTurn` / `startCombat`, which do their own permission checks.
 - Snapping uses `centreLines()`: left-to-right the middle of the area left of the visible sidebar (`#sidebar-tabs` / `#sidebar-content`;
   `#ui-right` also holds the chat-notification column, so it is not used) (setting
-  `centreFollowsSidebar`, default on) or of the screen; a tracker saved with centerX/centerY is re-centred by `place()`,
+  `centreFollowsSidebar`, default on) or of the screen. What goes on the line is the middle token (`tokenPivot`:
+  even count = between the two middle ones, semicircle = its centre slot) along the tokens, the tracker's middle
+  across them; a tracker saved with centerX/centerY is re-centred by `place()`,
   which a ResizeObserver on `#ui-right` calls while the sidebar opens or closes.
 - The grip's corner is always kept on screen (`clampAnchor`), so the tracker can always be moved back.
 - Players get only the End turn button (on a turn of a combatant they own); GMs get it too, plus their turn buttons.
