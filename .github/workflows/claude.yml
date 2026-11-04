@@ -8,7 +8,8 @@
 #              pushing more commits ask for a fresh one with "@claude review".
 #              Project rules for the reviewer are in CLAUDE.md.
 #   - respond: mention @claude in a PR or issue comment (or a PR review comment) to ask a
-#              question or request a change. Only users with write access can trigger it.
+#              question or request a change. Only users with write access can trigger it;
+#              comments by bots (CodeRabbit, Dependabot) are skipped, even when they quote "@claude".
 
 name: Claude
 
@@ -60,9 +61,12 @@ jobs:
 
   respond:
     name: Respond to @claude
+    # Skips comments by bots: their text can contain "@claude" (CodeRabbit quoting "@CLAUDE.md"), and the action
+    # refuses bot-triggered runs, so the job would only fail.
     if: >-
+      github.event.comment.user.type != 'Bot' && (
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
