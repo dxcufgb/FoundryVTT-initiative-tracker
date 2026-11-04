@@ -1,0 +1,331 @@
+/* Dxcufgb's Initiative Tracker. Everything is scoped under #dxit-tracker; sizes follow --dxit-size. */
+
+#dxit-tracker {
+  --dxit-size: 36px;
+  --dxit-active: calc(var(--dxit-size) * 1.25);
+  --dxit-accent: #ff6400;
+  --dxit-bg-alpha: 0.7;
+  --dxit-ring-default: rgba(255, 255, 255, 0.35);
+  --dxit-gap: max(3px, calc(var(--dxit-size) * 0.12));
+  --dxit-radius: 50%;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 99;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-primary, "Signika"), sans-serif;
+  color: #f0f0e0;
+}
+
+#dxit-tracker.dxit--shape-rounded { --dxit-radius: 22%; }
+#dxit-tracker.dxit--shape-square { --dxit-radius: 3px; }
+
+.dxit-frame {
+  display: flex;
+  align-items: center;
+  gap: var(--dxit-gap);
+  padding: var(--dxit-gap) calc(var(--dxit-gap) * 1.6);
+  border-radius: calc(var(--dxit-size) * 0.4 + var(--dxit-gap));
+  pointer-events: auto;
+}
+.dxit--vertical .dxit-frame { padding: calc(var(--dxit-gap) * 1.6) var(--dxit-gap); }
+
+.dxit--theme-dark .dxit-frame {
+  background: rgba(14, 12, 10, var(--dxit-bg-alpha));
+  border: 1px solid rgba(255, 255, 255, calc(var(--dxit-bg-alpha) * 0.15));
+}
+.dxit--theme-light .dxit-frame {
+  background: rgba(240, 236, 226, var(--dxit-bg-alpha));
+  border: 1px solid rgba(0, 0, 0, calc(var(--dxit-bg-alpha) * 0.2));
+  color: #222;
+}
+.dxit--theme-none .dxit-frame { background: none; border: none; }
+
+.dxit-list {
+  display: flex;
+  align-items: center;
+  gap: var(--dxit-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dxit--vertical .dxit-list { flex-direction: column; }
+
+/* Tokens */
+.dxit-chip {
+  position: relative;
+  flex: none;
+  width: calc(var(--dxit-size) * var(--dxit-scale, 1));
+  height: calc(var(--dxit-size) * var(--dxit-scale, 1));
+  border-radius: var(--dxit-radius);
+  box-shadow: 0 0 0 2px var(--dxit-ring, var(--dxit-ring-default));
+  background: rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: box-shadow 200ms ease;
+}
+.dxit-portrait {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: var(--dxit-radius);
+  object-fit: cover;
+  pointer-events: none;
+}
+.dxit-chip:hover,
+.dxit-chip--hovered { box-shadow: 0 0 0 2px var(--dxit-ring, var(--dxit-ring-default)), 0 0 0 4px rgba(255, 255, 255, 0.5); }
+
+.dxit-chip--active {
+  box-shadow: 0 0 0 2px var(--dxit-ring, var(--dxit-ring-default)), 0 0 0 4px var(--dxit-accent), 0 0 10px 3px var(--dxit-accent);
+}
+/* Defeated (skull) and down (0 HP, unconscious, dead) combatants: grey and dimmed */
+.dxit-chip--defeated,
+.dxit-chip--down { opacity: 0.35; }
+.dxit-chip--defeated .dxit-portrait,
+.dxit-chip--down .dxit-portrait { filter: grayscale(1) brightness(0.6); }
+.dxit-chip--defeated.dxit-chip--active,
+.dxit-chip--down.dxit-chip--active { opacity: 0.6; }
+.dxit-chip--hidden,
+.dxit-chip--invisible { opacity: 0.5; }
+.dxit-chip--invisible .dxit-portrait { filter: saturate(0.5) brightness(0.9); }
+.dxit-chip--hidden .dxit-portrait { filter: saturate(0.4); }
+
+.dxit-defeated {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--dxit-size) * 0.45);
+  color: #e8e0d0;
+  text-shadow: 0 0 3px #000;
+  pointer-events: none;
+}
+
+.dxit-init {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  min-width: max(14px, calc(var(--dxit-size) * 0.42));
+  padding: 0 2px;
+  border-radius: 999px;
+  background: rgba(14, 12, 10, 0.9);
+  color: #fff;
+  font-size: max(9px, calc(var(--dxit-size) * 0.3));
+  line-height: max(14px, calc(var(--dxit-size) * 0.42));
+  text-align: center;
+  pointer-events: none;
+}
+.dxit-chip--active .dxit-init { background: var(--dxit-accent); }
+
+.dxit-hp {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: max(-5px, calc(var(--dxit-size) * -0.12));
+  height: max(3px, calc(var(--dxit-size) * 0.09));
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.75);
+  overflow: hidden;
+  pointer-events: none;
+}
+.dxit-hp > span { display: block; height: 100%; background: #4cbb5a; }
+.dxit-hp--low > span { background: #d64a3c; }
+
+/* Round, divider, +N, buttons */
+.dxit-round {
+  min-width: calc(var(--dxit-size) * 0.6);
+  font-size: max(11px, calc(var(--dxit-size) * 0.36));
+  font-weight: bold;
+  text-align: center;
+  opacity: 0.85;
+}
+/* The round with the hostile counter under it */
+.dxit-status { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: none; }
+
+/* Hostiles still standing */
+.dxit-hostiles {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  padding: 1px max(5px, calc(var(--dxit-size) * 0.14));
+  border-radius: 999px;
+  background: rgba(179, 38, 30, 0.85);
+  color: #fff;
+  font-size: max(10px, calc(var(--dxit-size) * 0.28));
+  font-weight: bold;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.dxit-hostiles i { font-size: 0.85em; }
+.dxit-hostiles--cleared { background: rgba(60, 140, 70, 0.85); }
+.dxit-hostiles--dropped { animation: dxit-hostiles-drop 500ms cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes dxit-hostiles-drop {
+  from { transform: scale(1.5); }
+  to { transform: scale(1); }
+}
+
+.dxit-divider {
+  flex: none;
+  width: 2px;
+  height: calc(var(--dxit-size) * 0.8);
+  border-radius: 1px;
+  background: var(--dxit-accent);
+  opacity: 0.7;
+}
+.dxit--vertical .dxit-divider { width: calc(var(--dxit-size) * 0.8); height: 2px; }
+
+.dxit-more {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--dxit-size) * 0.8);
+  height: calc(var(--dxit-size) * 0.8);
+  border-radius: var(--dxit-radius);
+  background: rgba(255, 255, 255, 0.12);
+  font-size: max(10px, calc(var(--dxit-size) * 0.32));
+  font-weight: bold;
+  cursor: pointer;
+}
+.dxit-more:hover { background: rgba(255, 255, 255, 0.25); }
+
+/* Foundry gives every button "transition: all 0.5s", which made End turn slide in from the corner on every render.
+   Only colours fade here; movement is done by the tracker's own animations. */
+#dxit-tracker button { transition: background-color 120ms ease, opacity 120ms ease, color 120ms ease; }
+
+/* Buttons: small next to the tokens */
+#dxit-tracker {
+  --dxit-btn: max(16px, calc(var(--dxit-size) * 0.42));
+  --dxit-btn-font: max(9px, calc(var(--dxit-size) * 0.24));
+}
+#dxit-tracker .dxit-button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--dxit-btn);
+  height: var(--dxit-btn);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: var(--dxit-btn-font);
+  line-height: 1;
+  opacity: 0.7;
+  cursor: pointer;
+}
+#dxit-tracker .dxit-button:hover { opacity: 1; background: rgba(255, 255, 255, 0.15); }
+/* Roll NPCs: stands out until every NPC has rolled; the small number is how many still need to */
+#dxit-tracker .dxit-button--roll { position: relative; opacity: 1; color: var(--dxit-accent); }
+.dxit-roll-count {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  min-width: 11px;
+  padding: 0 2px;
+  border-radius: 999px;
+  background: var(--dxit-accent);
+  color: #fff;
+  font-size: max(8px, calc(var(--dxit-btn-font) * 0.75));
+  font-weight: bold;
+  line-height: 11px;
+  text-align: center;
+}
+
+/* End turn: red, the only button players get */
+#dxit-tracker .dxit-end-turn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
+  width: auto;
+  height: var(--dxit-btn);
+  min-height: 0;
+  margin: 0;
+  padding: 0 max(6px, calc(var(--dxit-size) * 0.18));
+  border: none;
+  border-radius: 999px;
+  background: #b3261e;
+  color: #fff;
+  font-size: var(--dxit-btn-font);
+  font-weight: bold;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+#dxit-tracker .dxit-end-turn:hover { background: #d23a2f; }
+
+/* Semicircle: the current turn in the centre, neighbours placed (and faded) by the script */
+.dxit-list.dxit-arc { position: relative; display: block; flex: none; }
+.dxit-arc .dxit-chip { position: absolute; }
+.dxit-chip--leaving { pointer-events: none; }
+.dxit-arc .dxit-divider { position: absolute; z-index: 1; width: 2px; margin: 0; transform-origin: center; opacity: 1; }
+
+/*
+ * Layout: the tokens (.dxit-main) on top, the buttons (.dxit-actions) under them.
+ * Horizontal: buttons in a row under the tokens. Vertical: the icon buttons in a row, End turn under them.
+ * Horizontal semicircle: icon buttons in a column beside it, End turn under (flipped: above) the current turn.
+ */
+.dxit-frame { flex-direction: column; }
+.dxit-main { display: flex; align-items: center; gap: var(--dxit-gap); }
+.dxit--vertical .dxit-main { flex-direction: column; }
+.dxit-track { display: flex; flex-direction: column; align-items: center; }
+.dxit-arc-box { position: relative; display: block; flex: none; }
+.dxit-arc-box .dxit-end-turn--arc { position: absolute; left: 0; top: 0; z-index: 1; }
+
+.dxit-actions { display: flex; align-items: center; justify-content: center; gap: 4px; flex: none; }
+.dxit-controls { display: flex; gap: 2px; }
+.dxit--vertical .dxit-actions { flex-direction: column; }
+.dxit--horizontal.dxit--layout-arc .dxit-frame { flex-direction: row; }
+.dxit--horizontal.dxit--layout-arc .dxit-controls { flex-direction: column; }
+
+/* A combatant defeated since the last render: fades to grey, then the skull drops in */
+.dxit-chip--dying .dxit-portrait { animation: dxit-grey 800ms ease forwards; }
+.dxit-chip--dying .dxit-defeated { animation: dxit-skull 450ms 750ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes dxit-grey {
+  from { filter: none; }
+  to { filter: grayscale(1) brightness(0.6); }
+}
+@keyframes dxit-skull {
+  from { opacity: 0; transform: scale(2.2); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dxit-chip--dying .dxit-portrait, .dxit-chip--dying .dxit-defeated { animation-duration: 1ms; animation-delay: 0ms; }
+}
+
+.dxit-grip {
+  display: grid;
+  place-items: center;
+  width: 12px;
+  align-self: stretch;
+  font-size: 11px;
+  touch-action: none;
+  cursor: grab;
+  transition: opacity 120ms ease;
+}
+.dxit--vertical .dxit-grip { width: auto; height: 12px; }
+.dxit--vertical .dxit-grip i { transform: rotate(90deg); }
+.dxit-grip { opacity: 0.35; }
+.dxit-frame:hover .dxit-grip,
+.dxit--dragging .dxit-grip { opacity: 0.8; }
+.dxit--dragging .dxit-grip { cursor: grabbing; }
+
+/* Centre guides while dragging */
+.dxit-guide {
+  position: fixed;
+  z-index: 98;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.dxit-guide--on { opacity: 0.9; }
+.dxit-guide--v { left: 50%; top: 0; bottom: 0; width: 0; border-left: 2px dashed var(--dxit-accent, #ff6400); margin-left: -1px; }
+.dxit-guide--h { top: 50%; left: 0; right: 0; height: 0; border-top: 2px dashed var(--dxit-accent, #ff6400); margin-top: -1px; }
+
+/* Death flames: a layer over the tracker that the flame canvases sit in */
+.dxit-fx { position: absolute; inset: 0; pointer-events: none; z-index: 2; overflow: visible; }
+.dxit-flames { position: absolute; pointer-events: none; }

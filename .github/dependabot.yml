@@ -1,0 +1,16 @@
+# Keeps the GitHub Actions used by the workflows up to date (one grouped PR a week).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+      exclude: ["dxcufgb/*"] # shared module workflows: take fixes right away
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

@@ -1,0 +1,30 @@
+# CodeRabbit settings for FoundryVTT-initiative-tracker.
+# Shared rules come from the central dxcufgb/coderabbit repository (inheritance: true), and CodeRabbit reads
+# the README as code guidelines. Only what is specific to this repository is here.
+# Paths here must not repeat a central path (scripts/**/*.js, .github/workflows/**, **/*.sh, **/*.ps1, **/*.iss,
+# module.json, **/*.md): an entry with the same path replaces the central one instead of adding to it.
+# Check the merged result on a pull request with: @coderabbitai configuration
+inheritance: true
+
+reviews:
+  path_instructions:
+    - path: "scripts/**"
+      instructions: |
+        The module writes nothing to documents: look and feel are client settings, and the turn buttons only call core
+        Combat methods. The tracker lists only combatant.visible turns, so hidden combatants must never reach a
+        player's tracker, tooltip or token numbers (numbers count visible turns only). Health comes from the token's
+        bar1 and players see it only as the playerHealth world setting allows. Tooltip strings are HTML, so every name
+        must go through escapeHTML. Renders are debounced and must never throw out of a hook. API members, the hook
+        dxcufgbsInitiativeTrackerRender, setting ids and the dxit-tracker element id are stable names.
+    - path: "styles/**"
+      instructions: |
+        Everything is scoped under #dxit-tracker or .dxit-* classes and sized from --dxit-size. The outer element has
+        pointer-events: none so it never blocks the canvas; only the frame takes clicks.
+    - path: "tests/**"
+      instructions: |
+        Plain node:test files run by CI through .github/foundry-module.json ("lint"). They must not need Foundry.
+    - path: ".github/workflows/{ci,release}.yml"
+      instructions: |
+        Thin callers of dxcufgb/foundry-module-ci, identical in every Foundry module repository. Flag any change
+        here that is not the same change in all modules (it belongs in foundry-module-ci instead), except the
+        pinned SHA of foundry-module-ci itself.

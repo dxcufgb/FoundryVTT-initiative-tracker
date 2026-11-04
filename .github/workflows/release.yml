@@ -1,0 +1,47 @@
+# Releases this Foundry module. Identical in every dxcufgb Foundry module repository.
+#
+# How to release:  Actions -> "Release module" -> Run workflow -> type the version (e.g. 1.2.3) -> Run.
+#   Everything is checked and built first; only then is the release v1.2.3 created on main and
+#   published with module.json and module.zip. Nothing is published if a step fails.
+# Fallback: publishing a release by hand (tag v1.2.3) also works; its files are attached afterwards.
+#
+# People install from https://github.com/<owner>/<repo>/releases/latest/download/module.json
+# (private modules: through the Foundry private GitHub proxy, which serves the same two files).
+
+name: Release module
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.2.3"
+        required: true
+        type: string
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # create the release and attach its files
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: true
+          persist-credentials: false
+
+      - uses: dxcufgb/foundry-module-ci/release@e98d175606a94cda4734fd1510096153c40d3ee8 # v1.1.0
+        with:
+          version: ${{ inputs.version }}
+          github-token: ${{ github.token }}
+          # Optional: asks the Workshop site to rebuild once the release is out. Without the secret nothing changes.
+          site-dispatch-token: ${{ secrets.SITE_DISPATCH_TOKEN }}

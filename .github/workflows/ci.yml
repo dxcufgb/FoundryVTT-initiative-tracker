@@ -1,0 +1,30 @@
+# CI for this Foundry module. Identical in every dxcufgb Foundry module repository; the checks
+# themselves live in dxcufgb/foundry-module-ci (module-specific settings: .github/foundry-module.json).
+# The job name "Check module" is a required status check in the repository ruleset.
+
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check module
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          lfs: true
+          persist-credentials: false
+
+      - uses: dxcufgb/foundry-module-ci/check@e98d175606a94cda4734fd1510096153c40d3ee8 # v1.1.0

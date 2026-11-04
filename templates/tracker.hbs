@@ -1,0 +1,63 @@
+<div class="dxit-frame">
+  <div class="dxit-main">
+    <span class="dxit-grip" data-tooltip="DXIT.Tracker.Grip" data-tooltip-direction="{{tooltipDirection}}"><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i></span>
+    {{#if showStatus}}
+    <div class="dxit-status">
+      {{#if showRound}}
+      <span class="dxit-round" data-flip="round" data-tooltip="DXIT.Tracker.Round" data-tooltip-direction="{{tooltipDirection}}">{{#if started}}{{round}}{{else}}<i class="fa-solid fa-hourglass-start" aria-hidden="true"></i>{{/if}}</span>
+      {{/if}}
+      {{#if hostiles}}
+      <span class="dxit-hostiles{{#if hostiles.dropped}} dxit-hostiles--dropped{{/if}}{{#if hostiles.cleared}} dxit-hostiles--cleared{{/if}}" data-flip="hostiles" data-tooltip="DXIT.Tracker.Hostiles" data-tooltip-direction="{{tooltipDirection}}"><i class="fa-solid fa-skull-crossbones" aria-hidden="true"></i>{{hostiles.standing}}</span>
+      {{/if}}
+    </div>
+    {{/if}}
+    <div class="dxit-track{{#if arc}} dxit-arc-box{{/if}}">
+      <ol class="dxit-list{{#if arc}} dxit-arc{{/if}}"{{#if arc}} style="width: {{arc.width}}px; height: {{arc.height}}px;" data-exit-before="{{arc.exitBefore}}" data-exit-after="{{arc.exitAfter}}"{{/if}}>
+        {{#each entries}}
+        {{#if this.divider}}
+        <li class="dxit-divider" aria-hidden="true" data-flip="{{this.flip}}"{{#if this.rotate}} data-rotate="{{this.rotate}}"{{/if}}{{#if this.style}} style="{{this.style}}"{{/if}}></li>
+        {{else}}
+        <li class="dxit-chip{{#if this.active}} dxit-chip--active{{/if}}{{#if this.defeated}} dxit-chip--defeated{{/if}}{{#if this.down}} dxit-chip--down{{/if}}{{#if this.hidden}} dxit-chip--hidden{{/if}}{{#if this.invisible}} dxit-chip--invisible{{/if}}{{#if this.owner}} dxit-chip--owner{{/if}}"
+            data-combatant-id="{{this.id}}"{{#if this.side}} data-side="{{this.side}}"{{/if}} data-tooltip="{{this.tooltip}}" data-tooltip-direction="{{@root.tooltipDirection}}"
+            {{#if this.style}}style="{{this.style}}"{{/if}}>
+          <img class="dxit-portrait" src="{{this.img}}" alt="{{this.name}}" draggable="false">
+          {{#if this.dead}}<i class="dxit-defeated fa-solid fa-skull" aria-hidden="true"></i>{{/if}}
+          {{#if @root.showInitiative}}<span class="dxit-init">{{this.initiative}}</span>{{/if}}
+          {{#if this.hp}}<span class="dxit-hp{{#if this.hp.low}} dxit-hp--low{{/if}}"><span style="width: {{this.hp.pct}}%"></span></span>{{/if}}
+        </li>
+        {{/if}}
+        {{/each}}
+        {{#if more}}
+        <li class="dxit-more" data-action="expand" data-tooltip="DXIT.Tracker.ShowAll" data-tooltip-direction="{{tooltipDirection}}">+{{more}}</li>
+        {{/if}}
+        {{#if canCollapse}}
+        <li class="dxit-more" data-action="expand" data-tooltip="DXIT.Tracker.ShowLess" data-tooltip-direction="{{tooltipDirection}}"><i class="fa-solid fa-compress" aria-hidden="true"></i></li>
+        {{/if}}
+      </ol>
+      {{#if arcEndTurn}}
+      <button type="button" class="dxit-end-turn dxit-end-turn--arc" data-flip="end-turn" data-action="endTurn" data-inward="{{arc.inward}}"><i class="fa-solid fa-check" aria-hidden="true"></i> {{localize "DXIT.Tracker.EndTurn"}}</button>
+      {{/if}}
+    </div>
+  </div>
+  {{#if hasActions}}
+  <div class="dxit-actions" data-flip="actions">
+    {{#if gmControls}}
+    <span class="dxit-controls">
+      {{#if unrolledNPCs}}
+      <button type="button" class="dxit-button dxit-button--roll" data-action="rollNPCs" data-tooltip="DXIT.Tracker.RollNPCs" data-tooltip-direction="{{tooltipDirection}}" aria-label="{{localize "DXIT.Tracker.RollNPCs"}}"><i class="fa-solid fa-dice-d20"></i><span class="dxit-roll-count">{{unrolledNPCs}}</span></button>
+      {{/if}}
+      {{#if started}}
+      <button type="button" class="dxit-button" data-action="previous" data-tooltip="DXIT.Tracker.Previous" data-tooltip-direction="{{tooltipDirection}}" aria-label="{{localize "DXIT.Tracker.Previous"}}"><i class="fa-solid fa-backward-step"></i></button>
+      <button type="button" class="dxit-button" data-action="next" data-tooltip="DXIT.Tracker.Next" data-tooltip-direction="{{tooltipDirection}}" aria-label="{{localize "DXIT.Tracker.Next"}}"><i class="fa-solid fa-forward-step"></i></button>
+      {{else}}
+      <button type="button" class="dxit-button" data-action="start" data-tooltip="DXIT.Tracker.Start" data-tooltip-direction="{{tooltipDirection}}" aria-label="{{localize "DXIT.Tracker.Start"}}"><i class="fa-solid fa-play"></i></button>
+      {{/if}}
+      <button type="button" class="dxit-button" data-action="popout" data-tooltip="DXIT.Tracker.Popout" data-tooltip-direction="{{tooltipDirection}}" aria-label="{{localize "DXIT.Tracker.Popout"}}"><i class="fa-solid fa-list"></i></button>
+    </span>
+    {{/if}}
+    {{#if actionsEndTurn}}
+    <button type="button" class="dxit-end-turn" data-action="endTurn"><i class="fa-solid fa-check" aria-hidden="true"></i> {{localize "DXIT.Tracker.EndTurn"}}</button>
+    {{/if}}
+  </div>
+  {{/if}}
+</div>

@@ -1,0 +1,11 @@
+# Build output (created by the release workflow)
+module.zip
+*.tmp.json
+
+# OS / editor clutter
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+node_modules/

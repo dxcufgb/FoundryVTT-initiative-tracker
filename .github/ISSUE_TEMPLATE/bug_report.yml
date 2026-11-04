@@ -1,0 +1,48 @@
+name: Bug report
+description: Something in the module does not work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Enable the module
+        2. ...
+  - type: input
+    id: module-version
+    attributes:
+      label: Module version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: foundry-version
+    attributes:
+      label: Foundry VTT version
+      placeholder: "13.348"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Game system and version
+      placeholder: "dnd5e 5.1.0"
+  - type: textarea
+    id: modules
+    attributes:
+      label: Other active modules
+      description: Does it still happen with only this module active (Find the Culprit helps)?
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: Press F12, open the Console tab and paste any red errors.
+      render: text

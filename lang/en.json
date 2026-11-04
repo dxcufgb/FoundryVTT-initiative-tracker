@@ -1,0 +1,195 @@
+{
+  "DXIT": {
+    "Title": "Initiative tracker",
+    "Tracker": {
+      "Grip": "Drag to move · double-click to put it back",
+      "Round": "Round",
+      "ShowAll": "Show everyone",
+      "ShowLess": "Show fewer",
+      "Previous": "Previous turn",
+      "Next": "Next turn",
+      "Start": "Begin combat",
+      "EndTurn": "End turn",
+      "Popout": "Open the full combat tracker",
+      "Hostiles": "Hostiles still standing",
+      "RollNPCs": "Roll initiative for every NPC that hasn't rolled"
+    },
+    "Tooltip": {
+      "Initiative": "Initiative",
+      "Health": "Health",
+      "Defeated": "Defeated",
+      "Hidden": "Hidden from players",
+      "Invisible": "Invisible",
+      "Down": "Down",
+      "Menu": "Right-click for options"
+    },
+    "Keybindings": {
+      "toggle": {
+        "Name": "Show or hide the initiative tracker",
+        "Hint": "Turns the compact initiative tracker on or off for you."
+      }
+    },
+    "Settings": {
+      "enabled": {
+        "Name": "Show the initiative tracker",
+        "Hint": "Off until you turn it on. Shows the compact initiative order over the map while a combat is running. Only for you."
+      },
+      "layout": {
+        "Name": "Layout",
+        "Hint": "Ribbon shows every combatant's token. Now / next shows only whose turn it is and the next one; click the + to see everyone. Semicircle puts whose turn it is in the centre with the turns before and after it fading out along a half circle. The settings below change to match the layout you pick.",
+        "Choices": {
+          "ribbon": "Ribbon: everyone",
+          "pill": "Now / next",
+          "arc": "Semicircle"
+        }
+      },
+      "orientation": {
+        "Name": "Orientation",
+        "Hint": "A row or a column. Drag the grip to move the tracker anywhere; where you drop it is saved, and the tracker stays anchored on the grip, so the grip is always where you left it however big the tracker gets. Double-click the grip to put it back.",
+        "Choices": {
+          "horizontal": "Horizontal",
+          "vertical": "Vertical"
+        }
+      },
+      "centreFollowsSidebar": {
+        "Name": "Centre line follows the sidebar",
+        "Hint": "When you drag the tracker near the middle of the screen it snaps to a centre line. On: the left-to-right centre is the middle of the map area left of the sidebar, and a tracker snapped to it moves along when the sidebar opens or closes. Off: the middle of the whole screen."
+      },
+      "placement": {
+        "Name": "Current combatant",
+        "Hint": "Where whoever's turn it is sits in the tracker: first, in the middle with the turns before and after it, last, or in plain initiative order. A line marks where the next round starts.",
+        "Choices": {
+          "start": "At the start (left / top)",
+          "center": "In the centre",
+          "end": "At the end (right / bottom)",
+          "fixed": "Initiative order, highlighted"
+        }
+      },
+      "size": {
+        "Name": "Token size",
+        "Hint": "The size of each token in pixels. Changes show on the tracker right away, before you save."
+      },
+      "sizing": {
+        "Name": "Token sizes",
+        "Hint": "Whoever's turn it is is always a quarter bigger. The others are either all the same size, or get smaller the further their turn is from the current one. On the semicircle, smaller tokens make room for more turns at the same size.",
+        "Choices": {
+          "equal": "All the same size",
+          "taper": "Smaller the further away"
+        }
+      },
+      "maxVisible": {
+        "Name": "Tokens shown at most",
+        "Hint": "0 shows everyone. With a limit, the rest are summed up in a +N you can click to see everyone."
+      },
+      "arcReach": {
+        "Name": "Semicircle: turns on each side",
+        "Hint": "How many turns before and after the current one a round semicircle shows. Making it wider, or the tokens smaller further away, fits more."
+      },
+      "arcWidth": {
+        "Name": "Semicircle: width",
+        "Hint": "Widens the semicircle into an ellipse without making it any deeper, in percent: 100 is a round half circle. The extra room shows more turns on each side, with the same token size and gaps."
+      },
+      "arcFade": {
+        "Name": "Semicircle: fade",
+        "Hint": "How much the tokens fade towards the ends of the semicircle, in percent."
+      },
+      "arcFlip": {
+        "Name": "Semicircle: flip",
+        "Hint": "Turns the semicircle the other way: arching up instead of hanging down (horizontal), or bulging left instead of right (vertical)."
+      },
+      "shape": {
+        "Name": "Token shape",
+        "Choices": {
+          "circle": "Circle",
+          "rounded": "Rounded square",
+          "square": "Square"
+        },
+        "Hint": "The shape of the token pictures."
+      },
+      "theme": {
+        "Name": "Background",
+        "Hint": "The bar behind the tokens.",
+        "Choices": {
+          "dark": "Dark",
+          "light": "Light",
+          "none": "None, tokens only"
+        }
+      },
+      "opacity": {
+        "Name": "Background opacity",
+        "Hint": "How solid the bar behind the tokens is, in percent."
+      },
+      "accent": {
+        "Name": "Highlight colour",
+        "Hint": "The colour that marks whose turn it is, in the tracker and on the token numbers."
+      },
+      "ringColor": {
+        "Name": "Ring colour",
+        "Hint": "The coloured ring around each token.",
+        "Choices": {
+          "disposition": "Friendly, neutral or hostile",
+          "player": "The player's colour",
+          "none": "No ring"
+        }
+      },
+      "showRound": {
+        "Name": "Show the round",
+        "Hint": "Shows the round number at the start of the tracker."
+      },
+      "showHostiles": {
+        "Name": "Show hostiles left",
+        "Hint": "A small counter of the hostile combatants still standing (not defeated, not unconscious or dead, and not at 0 on their first bar). Counts only the ones you can see."
+      },
+      "showInitiative": {
+        "Name": "Show initiative numbers",
+        "Hint": "Shows each combatant's initiative on their token in the tracker. It's always in the tooltip."
+      },
+      "showHealth": {
+        "Name": "Show health bars",
+        "Hint": "A thin health bar under the tokens whose health you may see, from the token's first bar."
+      },
+      "showControls": {
+        "Name": "Show buttons",
+        "Hint": "Shows the tracker's buttons: End turn on the turn of a combatant you own (players and GM), and for the GM also Roll NPCs (while any NPC hasn't rolled initiative), previous and next turn, and a button that opens the full combat tracker."
+      },
+      "tokenBadges": {
+        "Name": "Turn order on tokens",
+        "Hint": "A small number on each token in the combat showing its place in the order. Whose turn it is gets the highlight colour."
+      },
+      "deathFlames": {
+        "Name": "Flames when a combatant dies",
+        "Hint": "A short burst of flames on a combatant's token in the tracker when it dies (marked defeated or dead, or an NPC at 0 on its first bar), if its token is shown in the tracker at that moment."
+      },
+      "badgeScale": {
+        "Name": "Size of the numbers on tokens",
+        "Hint": "In percent of the normal size."
+      },
+      "playerHealth": {
+        "Name": "Health players can see",
+        "Hint": "Which health bars players see in the tracker. GMs always see all of them.",
+        "Choices": {
+          "own": "Only their own",
+          "friendly": "Their own and friendly tokens",
+          "all": "Everyone's"
+        }
+      },
+      "skipDead": {
+        "Name": "Skip dead combatants' turns",
+        "Hint": "When the turn moves on to a dead combatant (marked defeated, the Dead status, or an NPC at 0 on its first bar), it moves straight past it, and past any more dead ones after it. Stepping back onto a dead combatant, or choosing Go to Turn on it in the tracker, keeps its turn. Player characters at 0 are never skipped: they make death saves."
+      },
+      "askEndEncounter": {
+        "Name": "Ask to end the encounter",
+        "Hint": "When the last hostile combatant falls (defeated, unconscious or dead, or at 0 on its first bar), asks the GM whether to end the encounter."
+      }
+    },
+    "Encounter": {
+      "Title": "All hostiles are down",
+      "Question": "No hostile combatant is still standing. End the encounter?",
+      "End": "End encounter",
+      "KeepGoing": "Keep going"
+    },
+    "Menu": {
+      "GoToTurn": "Go to Turn"
+    }
+  }
+}
