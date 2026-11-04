@@ -268,6 +268,12 @@
 .dxit-list.dxit-arc { position: relative; display: block; flex: none; }
 .dxit-arc .dxit-chip { position: absolute; }
 .dxit-chip--leaving { pointer-events: none; }
+/* The semicircle's empty room (its background, the empty ends, the space inside the arc) lets clicks through to the
+   map; only the tokens, buttons, grip and counters take them. */
+#dxit-tracker.dxit--layout-arc .dxit-frame { pointer-events: none; }
+#dxit-tracker.dxit--layout-arc :is(.dxit-chip:not(.dxit-chip--leaving), .dxit-grip, .dxit-round, .dxit-hostiles, .dxit-more, button) {
+  pointer-events: auto;
+}
 .dxit-arc .dxit-divider { position: absolute; z-index: 1; width: 2px; margin: 0; transform-origin: center; opacity: 1; }
 
 /*

@@ -84,7 +84,8 @@ settings, so every player sets it up their own way. No build step, no npm depend
 - A tapering or widened (`arcWidth`, an ellipse) semicircle shows as many turns as fit without getting deeper than
   the round one with the same sizes (`arcSideCount`).
 - The element lets clicks through (`pointer-events: none`) except on its frame; it must never block the canvas
-  around it.
+  around it. On the semicircle the frame lets clicks through too (its empty room covers a lot of map): only tokens,
+  buttons, the grip and the counters take clicks.
 - Invisible tokens (hidden on the map, or the Invisible status) are faded in the tracker (`dxit-chip--invisible`).
 - Foundry styles every button with `transition: all 0.5s`; the tracker's buttons override it (colours only), or
   placing them after a render would animate them from the corner. All movement is the tracker's own FLIP.
