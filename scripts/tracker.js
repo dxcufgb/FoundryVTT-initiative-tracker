@@ -12,7 +12,7 @@
 import { MODULE_ID, TEMPLATE_PATH, escapeHTML, setting, clamp, t } from "./util.js";
 import { countHostiles, isDown, isDead, JUMP_OPTION } from "./encounter.js";
 import { spawnFlames, attachFlameLayer } from "./flames.js";
-import { windowTurns, arcLayout, arcSideCount, arcExits, healthFraction, clampAnchor, sizeFactor, snapToCentre, nextShown, isRevealed } from "./order.js";
+import { windowTurns, padWindow, arcLayout, arcSideCount, arcExits, healthFraction, clampAnchor, sizeFactor, snapToCentre, nextShown, isRevealed } from "./order.js";
 
 const ELEMENT_ID = "dxit-tracker";
 const GRIP = 24;
@@ -221,6 +221,7 @@ async function prepareContext(combat) {
 
   let entries;
   let more = 0;
+  let moreSlot = false;
   let arc = null;
   const taper = setting("sizing") === "taper";
   const limit = clamp(setting("maxVisible"), 0, 30, 0);
@@ -283,13 +284,18 @@ async function prepareContext(combat) {
     if (pill && placement === "fixed") placement = "start";
     const max = expanded ? 0 : (pill ? (placement === "center" ? 3 : 2) : limit);
     ({ entries, more } = windowTurns(turns, anchorId, { placement, max, afterHidden }));
+    // A limited tracker keeps its full size with fewer turns (like the semicircle): empty slots, and the +N's room.
+    if (max > 0) {
+      entries = padWindow(entries, { placement, max });
+      moreSlot = !more;
+    }
   }
 
   // The round line keeps its identity (the two turns it sits between), so it can slide with the tokens.
   entries.forEach((entry, i) => {
-    if (!entry.divider) return;
-    const before = entries.slice(0, i).reverse().find(e => !e.divider);
-    const after = entries.slice(i + 1).find(e => !e.divider);
+    if (!entry.divider || entry.slot) return;
+    const before = entries.slice(0, i).reverse().find(e => !e.divider && !e.slot);
+    const after = entries.slice(i + 1).find(e => !e.divider && !e.slot);
     entry.flip = `round:${before?.id ?? ""}|${after?.id ?? ""}`;
   });
   for (const entry of entries) {
@@ -312,6 +318,7 @@ async function prepareContext(combat) {
   return {
     entries,
     more,
+    moreSlot,
     arc,
     canCollapse: !arc && expanded && (layout === "pill" || limit > 0),
     vertical,
@@ -450,7 +457,8 @@ function tokenPivot() {
   const arc = element.querySelector(".dxit-list.dxit-arc");
   if (arc) mid = middleOf(arc);
   else {
-    const chips = [...element.querySelectorAll(".dxit-chip:not(.dxit-chip--leaving)")];
+    // Empty slots count: a tracker kept at its full size centres on its middle slot, like the semicircle.
+    const chips = [...element.querySelectorAll(".dxit-chip:not(.dxit-chip--leaving), .dxit-slot--turn")];
     if (chips.length) {
       const a = middleOf(chips[Math.floor((chips.length - 1) / 2)]);
       const b = middleOf(chips[Math.floor(chips.length / 2)]);

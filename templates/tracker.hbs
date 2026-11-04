@@ -14,7 +14,9 @@
     <div class="dxit-track{{#if arc}} dxit-arc-box{{/if}}">
       <ol class="dxit-list{{#if arc}} dxit-arc{{/if}}"{{#if arc}} style="width: {{arc.width}}px; height: {{arc.height}}px;" data-exit-before="{{arc.exitBefore}}" data-exit-after="{{arc.exitAfter}}"{{/if}}>
         {{#each entries}}
-        {{#if this.divider}}
+        {{#if this.slot}}
+        <li class="dxit-slot{{#if this.divider}} dxit-slot--divider{{else}} dxit-slot--turn{{/if}}" aria-hidden="true"{{#if this.style}} style="{{this.style}}"{{/if}}></li>
+        {{else if this.divider}}
         <li class="dxit-divider" aria-hidden="true" data-flip="{{this.flip}}"{{#if this.rotate}} data-rotate="{{this.rotate}}"{{/if}}{{#if this.style}} style="{{this.style}}"{{/if}}></li>
         {{else}}
         <li class="dxit-chip{{#if this.active}} dxit-chip--active{{/if}}{{#if this.defeated}} dxit-chip--defeated{{/if}}{{#if this.down}} dxit-chip--down{{/if}}{{#if this.hidden}} dxit-chip--hidden{{/if}}{{#if this.invisible}} dxit-chip--invisible{{/if}}{{#if this.owner}} dxit-chip--owner{{/if}}"
@@ -29,6 +31,9 @@
         {{/each}}
         {{#if more}}
         <li class="dxit-more" data-action="expand" data-tooltip="DXIT.Tracker.ShowAll" data-tooltip-direction="{{tooltipDirection}}">+{{more}}</li>
+        {{/if}}
+        {{#if moreSlot}}
+        <li class="dxit-slot dxit-slot--more" aria-hidden="true"></li>
         {{/if}}
         {{#if canCollapse}}
         <li class="dxit-more" data-action="expand" data-tooltip="DXIT.Tracker.ShowLess" data-tooltip-direction="{{tooltipDirection}}"><i class="fa-solid fa-compress" aria-hidden="true"></i></li>

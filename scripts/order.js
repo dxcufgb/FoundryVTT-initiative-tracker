@@ -86,6 +86,41 @@ export function isRevealed({ index, known }, { started, round, turn }) {
   return Number.isInteger(turn) && index <= turn;
 }
 
+/**
+ * Keeps a limited ribbon or Now / next at its full size with fewer turns than the limit, like the semicircle: the
+ * missing turns become empty slots ({slot: true, offset}) where more turns would go, so the current turn stays in
+ * its place. "start" / "fixed": after the turns; "end": before them; "center": on both sides, so the current turn
+ * stays in the middle slot. A round line's room is kept too ({slot: true, divider: true}) when there is none (not
+ * in "fixed", which has no round lines).
+ * @param {object[]} entries  from windowTurns
+ * @param {{placement?: string, max?: number}} options  max 0 or less = no limit (nothing added)
+ */
+export function padWindow(entries, { placement = "start", max = 0 } = {}) {
+  const list = Array.isArray(entries) ? entries : [];
+  const limit = Math.floor(Number(max) || 0);
+  if (limit <= 0) return list;
+  const turns = list.filter(e => !e.divider);
+  const missing = Math.max(0, limit - turns.length);
+  const step = (offset, by) => (Number.isFinite(offset) ? offset + by : null);
+  const first = turns[0]?.offset ?? null;
+  const last = turns.at(-1)?.offset ?? null;
+  let left = 0;
+  if (placement === "end") left = missing;
+  else if (placement === "center") left = Math.min(missing, Math.max(0, Math.floor((limit - 1) / 2) - Math.floor((turns.length - 1) / 2)));
+  const right = missing - left;
+  // "end" lists turns reversed (later turns on the left), so its empty slots continue after the last turn shown.
+  const before = Array.from({ length: left }, (_, i) => ({
+    slot: true, offset: placement === "end" ? step(first, left - i) : step(first, i - left)
+  }));
+  const after = Array.from({ length: right }, (_, i) => ({ slot: true, offset: step(last, i + 1) }));
+  const out = [...before, ...list, ...after];
+  if (placement !== "fixed" && !list.some(e => e.divider)) {
+    if (placement === "end") out.unshift({ slot: true, divider: true });
+    else out.push({ slot: true, divider: true });
+  }
+  return out;
+}
+
 /** Most turns a semicircle shows on each side of the current one. */
 const ARC_MAX_SIDE = 12;
 

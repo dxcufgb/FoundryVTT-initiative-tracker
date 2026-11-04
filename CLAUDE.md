@@ -78,6 +78,9 @@ settings, so every player sets it up their own way. No build step, no npm depend
 - The semicircle always has the full semicircle's size (`boxOffsets`); with few turns the ends stay empty. Tokens
   that join or leave slide in / out along the arc through `arcExits` (one step past each end); leaving ones are
   temporary copies (`dxit-chip--leaving`) removed when their animation ends.
+- A limited ribbon (`maxVisible` > 0) and Now / next (2 turns, 3 centred) keep their full size the same way:
+  `padWindow` adds empty `.dxit-slot` entries where the missing turns would go (current turn stays in its slot), plus
+  the room of a round line and of the +N (`moreSlot`). Unlimited ("everyone") or expanded: no padding.
 - A tapering or widened (`arcWidth`, an ellipse) semicircle shows as many turns as fit without getting deeper than
   the round one with the same sizes (`arcSideCount`).
 - The element lets clicks through (`pointer-events: none`) except on its frame; it must never block the canvas

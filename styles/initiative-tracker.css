@@ -188,6 +188,12 @@
   font-weight: bold;
   cursor: pointer;
 }
+/* Empty room a limited ribbon / Now / next keeps for turns it doesn't have (so it keeps its full size) */
+.dxit-slot { flex: none; visibility: hidden; pointer-events: none; }
+.dxit-slot--turn { width: calc(var(--dxit-size) * var(--dxit-scale, 1)); height: calc(var(--dxit-size) * var(--dxit-scale, 1)); }
+.dxit-slot--divider { width: 2px; height: calc(var(--dxit-size) * 0.8); }
+.dxit--vertical .dxit-slot--divider { width: calc(var(--dxit-size) * 0.8); height: 2px; }
+.dxit-slot--more { width: calc(var(--dxit-size) * 0.8); height: calc(var(--dxit-size) * 0.8); }
 .dxit-more:hover { background: rgba(255, 255, 255, 0.25); }
 
 /* Foundry gives every button "transition: all 0.5s", which made End turn slide in from the corner on every render.

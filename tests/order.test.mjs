@@ -251,3 +251,21 @@ test("snapToCentre puts the pivot (the middle token) on the line", async () => {
   assert.deepEqual(snapToCentre({ x: 430, y: 40, width: 200, height: 50, pivotX: 80, pivotY: 25 }, vp),
     { x: 420, y: 40, centerX: true, centerY: false });
 });
+
+test("padWindow keeps a limited tracker at full size with empty slots", async () => {
+  const { padWindow } = await import("../scripts/order.js");
+  const two = [{ id: "a" }, { id: "b" }];
+  const show = list => list.map(e => (e.slot ? (e.divider ? "/" : "_") : e.divider ? "|" : e.id)).join("");
+  const pad = (current, placement, max) => padWindow(windowTurns(two, current, { placement, max }).entries, { placement, max });
+  assert.equal(show(pad("a", "start", 5)), "ab___/");
+  assert.equal(show(pad("b", "start", 5)), "b|a___");
+  assert.equal(show(pad("a", "end", 5)), "/___ba");
+  assert.equal(show(pad("a", "center", 5)), "__ab_/");
+  assert.equal(show(pad("a", "fixed", 4)), "ab__");
+  assert.deepEqual(pad("a", "start", 4).filter(e => e.slot && !e.divider).map(e => e.offset), [2, 3]);
+  assert.deepEqual(pad("a", "end", 4).filter(e => e.slot && !e.divider).map(e => e.offset), [3, 2]);
+  assert.deepEqual(pad("a", "center", 5).filter(e => e.slot && !e.divider).map(e => e.offset), [-2, -1, 2]);
+  // Full or unlimited: unchanged except for the round line's room.
+  assert.equal(show(padWindow(windowTurns(turns, "a", { max: 3 }).entries, { max: 3 })), "abc/");
+  assert.equal(show(padWindow(windowTurns(turns, "a").entries, { max: 0 })), "abcde");
+});
