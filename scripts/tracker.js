@@ -492,6 +492,7 @@ async function render() {
   attachFlameLayer(element);
   markNewDefeats(combat, fresh);
   fitArcEndTurn();
+  fitPillEndTurn();
   bindChips();
   place();
   animateChips(before, fresh);
@@ -541,6 +542,39 @@ function fitArcEndTurn() {
   box.style.margin = [
     Math.max(0, -rect.top), Math.max(0, rect.right - width), Math.max(0, rect.bottom - height), Math.max(0, -rect.left)
   ].map(v => `${Math.ceil(v)}px`).join(" ");
+}
+
+/**
+ * Now / next, horizontal: End turn sits centred under the current turn's token; the GM's other buttons go beside it
+ * on the side with more room. If the button would stick out on the left, the tokens get a margin so the frame grows.
+ * (Vertical: the buttons are centred under the column of tokens already.) Works in CSS pixels (offsets).
+ */
+function fitPillEndTurn() {
+  if (!element.classList.contains("dxit--layout-pill") || element.classList.contains("dxit--vertical")) return;
+  const main = element.querySelector(".dxit-main");
+  const actions = element.querySelector(".dxit-actions");
+  const button = actions?.querySelector(".dxit-end-turn");
+  const chip = main?.querySelector(".dxit-chip--active");
+  if (!button || !chip) return;
+  const controls = actions.querySelector(".dxit-controls");
+  for (const el of [main, actions]) el.style.alignSelf = "stretch";
+  actions.style.justifyContent = "flex-start";
+  const gap = parseFloat(getComputedStyle(actions).columnGap) || 0;
+  // Both rows now start at the frame's content edge, so their offsets compare directly.
+  const centre = chip.offsetLeft + chip.offsetWidth / 2 - actions.offsetLeft;
+  const bw = button.offsetWidth;
+  const cw = controls ? controls.offsetWidth + gap : 0;
+  let left = centre - bw / 2;
+  const controlsLeft = !!controls && centre > actions.clientWidth / 2;
+  const start = controlsLeft ? left - cw : left;
+  if (start < 0) {
+    main.style.marginLeft = `${Math.ceil(-start)}px`;
+    left -= start;
+  }
+  button.style.order = "1";
+  if (controls) controls.style.order = controlsLeft ? "0" : "2";
+  const first = controlsLeft ? controls : button;
+  first.style.marginLeft = `${Math.max(0, Math.round(controlsLeft ? left - cw : left))}px`;
 }
 
 /** Everything that moves between renders: the chips (by combatant id) and [data-flip] parts, plus the frame size. */

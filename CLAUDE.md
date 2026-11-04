@@ -70,7 +70,8 @@ settings, so every player sets it up their own way. No build step, no npm depend
   The client setting `showControls` hides all buttons. Horizontal: buttons in a row under the tokens; vertical: icon
   buttons in a row with End turn under them (also on a vertical semicircle); horizontal semicircle: End turn inside
   the arc, moved from the current turn towards the circle's centre until it clears every token (`fitArcEndTurn`),
-  icon buttons in a column beside it.
+  icon buttons in a column beside it. Horizontal Now / next: End turn centred under the current token
+  (`fitPillEndTurn`), the GM's icon buttons beside it on the side with more room.
 - The settings window shows only the settings for the picked layout (`ARC_ONLY` / `LINEAR_ONLY` in settings.js).
 - The semicircle always has the full semicircle's size (`boxOffsets`); with few turns the ends stay empty. Tokens
   that join or leave slide in / out along the arc through `arcExits` (one step past each end); leaving ones are
