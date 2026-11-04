@@ -113,6 +113,15 @@ export function registerSettings(onLookChange, onBadgeChange, onPositionChange =
     onChange: () => onPlace()
   });
 
+  // Players: the combatants already revealed to them in each combat ({combatId: [combatantId, …]}), so a revealed
+  // combatant never disappears again, not even after a step back or a reload.
+  game.settings.register(MODULE_ID, "revealed", {
+    scope: "client",
+    config: false,
+    type: Object,
+    default: {}
+  });
+
   game.settings.register(MODULE_ID, "skipDead", {
     ...named("skipDead"),
     scope: "world",

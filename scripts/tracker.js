@@ -44,22 +44,56 @@ export function isAlly(combatant) {
   return combatant.token?.disposition === CONST.TOKEN_DISPOSITIONS.FRIENDLY;
 }
 
+/** combat id -> ids of the combatants revealed to this player (loaded from the hidden client setting "revealed"). */
+let revealedCache = null;
+
+function revealedSet(combatId) {
+  if (!revealedCache) {
+    const saved = game.settings.get(MODULE_ID, "revealed");
+    revealedCache = new Map(Object.entries(saved && typeof saved === "object" ? saved : {})
+      .map(([id, ids]) => [id, new Set(Array.isArray(ids) ? ids : [])]));
+  }
+  if (!revealedCache.has(combatId)) revealedCache.set(combatId, new Set());
+  return revealedCache.get(combatId);
+}
+
+/** Saves the revealed combatants (only for combats that still exist), at most a few times a second. */
+const saveRevealed = foundry.utils.debounce(() => {
+  if (!revealedCache) return;
+  const data = {};
+  for (const [id, ids] of revealedCache) if (game.combats.has(id) && ids.size) data[id] = [...ids];
+  game.settings.set(MODULE_ID, "revealed", data).catch(err => console.error(`${MODULE_ID} | saving reveals failed`, err));
+}, 200);
+
 /**
  * Combatants this user may see, in initiative order.
  * GMs: the core tracker's rule (everyone; hidden ones are faded).
- * Players: their own, and every combatant whose token isn't hidden on the map (a combatant without a token on a
- * scene: unless it is hidden in the combat). In the first round, only allies are known from the start; hostile and
- * neutral combatants are revealed when their turn comes up (isRevealed).
+ * Players: every combatant, whether or not its token is hidden, but in the first round only their own and allies
+ * from the start; hostile and neutral combatants are revealed when their turn comes up (isRevealed). Once revealed,
+ * a combatant stays (remembered per combat, also through a step back or a reload).
  */
 export function visibleCombatants(combat) {
   const turns = combat?.turns ?? [];
   if (game.user.isGM) return turns.filter(c => c.visible);
-  const state = { started: !!combat?.started, round: combat?.round ?? 0, turn: combat?.turn ?? null };
-  return turns.filter((c, index) => {
-    if (c.isOwner) return true;
-    const shown = c.token ? !c.token.hidden : c.visible;
-    return shown && isRevealed({ index, known: isAlly(c) }, state);
+  if (!combat) return [];
+  const state = { started: !!combat.started, round: combat.round ?? 0, turn: combat.turn ?? null };
+  const revealed = revealedSet(combat.id);
+  let grew = false;
+  const list = turns.filter((c, index) => {
+    if (c.isOwner || isAlly(c) || revealed.has(c.id)) return true;
+    if (!isRevealed({ index, known: false }, state)) return false;
+    revealed.add(c.id);
+    grew = true;
+    return true;
   });
+  if (grew) saveRevealed();
+  return list;
+}
+
+/** A combat ended: forget who was revealed in it. */
+export function forgetRevealed(combat) {
+  if (!revealedCache?.delete(combat.id)) return;
+  saveRevealed();
 }
 
 /** Is the combatant's token invisible: hidden on the map by the GM, or carrying the Invisible status? */
