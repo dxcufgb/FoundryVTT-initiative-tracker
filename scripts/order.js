@@ -18,10 +18,19 @@ export const PLACEMENTS = ["start", "center", "end", "fixed"];
  * Every turn entry gets `offset`: its distance from the current turn in initiative order (negative = earlier).
  * @param {object[]} turns         visible turns in initiative order
  * @param {string|null} currentId  id of the current turn
- * @param {{placement?: string, max?: number}} options  max 0 or less = everyone
+ * With `afterHidden`, the real current turn is one the user can't see and `currentId` is the next one they can: the
+ * hidden turn keeps offset 0 (no turn shown gets it), so `currentId` and the turns after it are one further on
+ * (1, 2, …) while the earlier ones stay at -1, -2, …
+ * @param {{placement?: string, max?: number, afterHidden?: boolean}} options  max 0 or less = everyone
  * @returns {{entries: object[], more: number}}  `more` = turns left out
  */
-export function windowTurns(turns, currentId, { placement = "start", max = 0 } = {}) {
+export function windowTurns(turns, currentId, { placement = "start", max = 0, afterHidden = false } = {}) {
+  const out = placeTurns(turns, currentId, placement, max);
+  if (afterHidden) for (const entry of out.entries) if (Number.isFinite(entry.offset) && entry.offset >= 0) entry.offset += 1;
+  return out;
+}
+
+function placeTurns(turns, currentId, placement, max) {
   const list = Array.isArray(turns) ? turns : [];
   const n = list.length;
   if (!n) return { entries: [], more: 0 };
@@ -45,6 +54,72 @@ export function windowTurns(turns, currentId, { placement = "start", max = 0 } =
   }
   if (placement === "end") entries.reverse();
   return { entries, more };
+}
+
+/**
+ * The turn to centre the tracker on when the current one is hidden from the user: the next shown turn after it in
+ * initiative order (wrapping round), or null.
+ * @param {string[]} allIds    every turn in initiative order
+ * @param {Set<string>} shown  the ids the user sees
+ * @param {string|null} currentId
+ */
+export function nextShown(allIds, shown, currentId) {
+  const start = allIds.indexOf(currentId);
+  if (start < 0) return null;
+  for (let k = 1; k <= allIds.length; k++) {
+    const id = allIds[(start + k) % allIds.length];
+    if (shown.has(id)) return id;
+  }
+  return null;
+}
+
+/**
+ * Round 1 reveal, for players: allies are known from the start; everyone else only once their turn has come up in
+ * the first round (their index in the order is at or before the current turn). From round 2 on, everyone. Before the
+ * combat starts only allies (the order isn't settled yet).
+ * @param {{index: number, known: boolean}} turn
+ * @param {{started: boolean, round: number, turn: number|null}} combat
+ */
+export function isRevealed({ index, known }, { started, round, turn }) {
+  if (known) return true;
+  if (!started) return false;
+  if (round > 1) return true;
+  return Number.isInteger(turn) && index <= turn;
+}
+
+/**
+ * Keeps a limited ribbon or Now / next at its full size with fewer turns than the limit, like the semicircle: the
+ * missing turns become empty slots ({slot: true, offset}) where more turns would go, so the current turn stays in
+ * its place. "start" / "fixed": after the turns; "end": before them; "center": on both sides, so the current turn
+ * stays in the middle slot. A round line's room is kept too ({slot: true, divider: true}) when there is none (not
+ * in "fixed", which has no round lines).
+ * @param {object[]} entries  from windowTurns
+ * @param {{placement?: string, max?: number}} options  max 0 or less = no limit (nothing added)
+ */
+export function padWindow(entries, { placement = "start", max = 0 } = {}) {
+  const list = Array.isArray(entries) ? entries : [];
+  const limit = Math.floor(Number(max) || 0);
+  if (limit <= 0) return list;
+  const turns = list.filter(e => !e.divider);
+  const missing = Math.max(0, limit - turns.length);
+  const step = (offset, by) => (Number.isFinite(offset) ? offset + by : null);
+  const first = turns[0]?.offset ?? null;
+  const last = turns.at(-1)?.offset ?? null;
+  let left = 0;
+  if (placement === "end") left = missing;
+  else if (placement === "center") left = Math.min(missing, Math.max(0, Math.floor((limit - 1) / 2) - Math.floor((turns.length - 1) / 2)));
+  const right = missing - left;
+  // "end" lists turns reversed (later turns on the left), so its empty slots continue after the last turn shown.
+  const before = Array.from({ length: left }, (_, i) => ({
+    slot: true, offset: placement === "end" ? step(first, left - i) : step(first, i - left)
+  }));
+  const after = Array.from({ length: right }, (_, i) => ({ slot: true, offset: step(last, i + 1) }));
+  const out = [...before, ...list, ...after];
+  if (placement !== "fixed" && !list.some(e => e.divider)) {
+    if (placement === "end") out.unshift({ slot: true, divider: true });
+    else out.push({ slot: true, divider: true });
+  }
+  return out;
 }
 
 /** Most turns a semicircle shows on each side of the current one. */
@@ -233,7 +308,10 @@ export function clampAnchor(point, viewport, grip = 24) {
 /**
  * Snaps a dragged tracker to the middle of the screen: when its centre comes within `threshold` pixels of the
  * screen's vertical centre line, it is centred left to right; likewise top to bottom for the horizontal centre line.
- * @param {{x: number, y: number, width: number, height: number}} box  the tracker's top-left corner and size
+ * The point that goes on the line is `pivotX` / `pivotY` from the box's corner (default: the box's middle; the tracker
+ * passes the middle of its tokens, so the middle token is split by the line).
+ * @param {{x: number, y: number, width: number, height: number, pivotX?: number, pivotY?: number}} box
+ *   the tracker's top-left corner and size
  * @param {{width: number, height: number}} viewport
  * @param {number} threshold
  * @param {{x?: number, y?: number}} centre  the centre lines (default: the middle of the viewport)
@@ -242,11 +320,13 @@ export function clampAnchor(point, viewport, grip = 24) {
 export function snapToCentre(box, viewport, threshold = 16, centre = {}) {
   const midX = Number.isFinite(centre.x) ? centre.x : viewport.width / 2;
   const midY = Number.isFinite(centre.y) ? centre.y : viewport.height / 2;
-  const centerX = Math.abs(box.x + box.width / 2 - midX) <= threshold;
-  const centerY = Math.abs(box.y + box.height / 2 - midY) <= threshold;
+  const px = Number.isFinite(box.pivotX) ? box.pivotX : box.width / 2;
+  const py = Number.isFinite(box.pivotY) ? box.pivotY : box.height / 2;
+  const centerX = Math.abs(box.x + px - midX) <= threshold;
+  const centerY = Math.abs(box.y + py - midY) <= threshold;
   return {
-    x: centerX ? Math.round(midX - box.width / 2) : box.x,
-    y: centerY ? Math.round(midY - box.height / 2) : box.y,
+    x: centerX ? Math.round(midX - px) : box.x,
+    y: centerY ? Math.round(midY - py) : box.y,
     centerX,
     centerY
   };

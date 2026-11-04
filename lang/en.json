@@ -36,7 +36,7 @@
       },
       "layout": {
         "Name": "Layout",
-        "Hint": "Ribbon shows every combatant's token. Now / next shows only whose turn it is and the next one; click the + to see everyone. Semicircle puts whose turn it is in the centre with the turns before and after it fading out along a half circle. The settings below change to match the layout you pick.",
+        "Hint": "Ribbon shows every combatant's token. Now / next shows only whose turn it is and the next one (when the GM has hidden that turn from you, the next one you can see); click the + to see everyone. Semicircle puts whose turn it is in the centre with the turns before and after it fading out along a half circle. The settings below change to match the layout you pick.",
         "Choices": {
           "ribbon": "Ribbon: everyone",
           "pill": "Now / next",
@@ -138,11 +138,11 @@
       },
       "showHostiles": {
         "Name": "Show hostiles left",
-        "Hint": "A small counter of the hostile combatants still standing (not defeated, not unconscious or dead, and not at 0 on their first bar). Counts only the ones you can see."
+        "Hint": "GM only. A small counter of the hostile combatants still standing (not defeated, not unconscious or dead, and not at 0 on their first bar). Players never see it."
       },
       "showInitiative": {
         "Name": "Show initiative numbers",
-        "Hint": "Shows each combatant's initiative on their token in the tracker. It's always in the tooltip."
+        "Hint": "GM only. Shows each combatant's initiative on their token in the tracker; it's always in the tooltip. Players never see initiative numbers."
       },
       "showHealth": {
         "Name": "Show health bars",
@@ -154,7 +154,7 @@
       },
       "tokenBadges": {
         "Name": "Turn order on tokens",
-        "Hint": "A small number on each token in the combat showing its place in the order. Whose turn it is gets the highlight colour."
+        "Hint": "A small number on each token in the combat showing its place in the order. Whose turn it is gets the highlight colour. In the first round players only see their allies' numbers; hostile and neutral combatants get theirs when their turn comes up."
       },
       "deathFlames": {
         "Name": "Flames when a combatant dies",

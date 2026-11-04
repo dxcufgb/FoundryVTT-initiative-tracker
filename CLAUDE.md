@@ -42,10 +42,19 @@ settings, so every player sets it up their own way. No build step, no npm depend
   module, do not edit here.
 
 ## Invariants
-- The tracker follows `game.combat` (the combat the core tracker shows) and only lists `combatant.visible` turns
-  (for players also not tokens hidden on the map unless they own them), so
-  players never see hidden combatants, and the numbers on tokens count only visible ones (no gaps that give a hidden
-  combatant away).
+- The tracker follows `game.combat` (the combat the core tracker shows). GMs see every `combatant.visible` turn.
+  Players see every `combatant.visible` combatant (the combat tracker's eye icon hides one from them) whatever its
+  token's visibility on the map (`visibleCombatants`), but in round 1 only their own
+  and allies (player-owned or Friendly) from the start: hostile and neutral ones are revealed when their turn comes
+  up (`isRevealed`: index <= combat.turn), so the order isn't given away. Once revealed, a combatant never
+  disappears: reveals are remembered per combat in the hidden client setting `revealed` (survives a step back or a
+  reload; dropped when the combat is deleted). The numbers on tokens use
+  the same list (no gaps that give a hidden or unrevealed combatant away). A revealed current turn slides into the
+  current slot from beside the track while fading in (`animateChips`).
+- When the current turn is hidden from a player, the tracker centres on the next turn they see (`nextShown`,
+  `windowTurns` `afterHidden`: the hidden turn keeps offset 0, so no shown turn is drawn as current; later turns 1, 2, …), so the tokens never all drop out.
+- The hostile counter (`showHostiles`) and initiative numbers (`showInitiative`, tooltip, `getOrder().initiative`)
+  are GM only; the settings window hides those two from players (`GM_ONLY`).
 - Players see the tracker only once the combat has started; GMs also before, with a Begin combat button.
 - Health comes from the token's `bar1` (`TokenDocument#getBarAttribute`), never system data, and players see it only
   for combatants they own unless the `playerHealth` world setting allows more.
@@ -55,22 +64,29 @@ settings, so every player sets it up their own way. No build step, no npm depend
   `Combat#nextTurn` / `previousTurn` / `startCombat`, which do their own permission checks.
 - Snapping uses `centreLines()`: left-to-right the middle of the area left of the visible sidebar (`#sidebar-tabs` / `#sidebar-content`;
   `#ui-right` also holds the chat-notification column, so it is not used) (setting
-  `centreFollowsSidebar`, default on) or of the screen; a tracker saved with centerX/centerY is re-centred by `place()`,
+  `centreFollowsSidebar`, default on) or of the screen. What goes on the line is the middle token (`tokenPivot`:
+  even count = between the two middle ones, semicircle = its centre slot) along the tokens, the tracker's middle
+  across them; a tracker saved with centerX/centerY is re-centred by `place()`,
   which a ResizeObserver on `#ui-right` calls while the sidebar opens or closes.
 - The grip's corner is always kept on screen (`clampAnchor`), so the tracker can always be moved back.
 - Players get only the End turn button (on a turn of a combatant they own); GMs get it too, plus their turn buttons.
   The client setting `showControls` hides all buttons. Horizontal: buttons in a row under the tokens; vertical: icon
   buttons in a row with End turn under them (also on a vertical semicircle); horizontal semicircle: End turn inside
   the arc, moved from the current turn towards the circle's centre until it clears every token (`fitArcEndTurn`),
-  icon buttons in a column beside it.
+  icon buttons in a column beside it. Horizontal Now / next: End turn centred under the current token
+  (`fitPillEndTurn`), the GM's icon buttons beside it on the side with more room.
 - The settings window shows only the settings for the picked layout (`ARC_ONLY` / `LINEAR_ONLY` in settings.js).
 - The semicircle always has the full semicircle's size (`boxOffsets`); with few turns the ends stay empty. Tokens
   that join or leave slide in / out along the arc through `arcExits` (one step past each end); leaving ones are
   temporary copies (`dxit-chip--leaving`) removed when their animation ends.
+- A limited ribbon (`maxVisible` > 0) and Now / next (2 turns, 3 centred) keep their full size the same way:
+  `padWindow` adds empty `.dxit-slot` entries where the missing turns would go (current turn stays in its slot), plus
+  the room of a round line and of the +N (`moreSlot`). Unlimited ("everyone") or expanded: no padding.
 - A tapering or widened (`arcWidth`, an ellipse) semicircle shows as many turns as fit without getting deeper than
   the round one with the same sizes (`arcSideCount`).
 - The element lets clicks through (`pointer-events: none`) except on its frame; it must never block the canvas
-  around it.
+  around it. On the semicircle the frame lets clicks through too (its empty room covers a lot of map): only tokens,
+  buttons, the grip and the counters take clicks.
 - Invisible tokens (hidden on the map, or the Invisible status) are faded in the tracker (`dxit-chip--invisible`).
 - Foundry styles every button with `transition: all 0.5s`; the tracker's buttons override it (colours only), or
   placing them after a render would animate them from the corner. All movement is the tracker's own FLIP.

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.1
+
+Fixes for players, and a few layout fixes.
+
+- Players see every combatant in the tracker again: it no longer showed only their own token on their turn and
+  nothing otherwise. A token hidden on the map still shows (faded); a combatant the GM hides in the combat tracker
+  (eye icon) doesn't.
+- Round 1: players see their own and allied combatants from the start; hostile and neutral ones appear, and get their
+  turn-order number on the map, when their turn comes up, sliding into the current slot as they fade in. Once
+  revealed they stay, also after a step back or a reload.
+- The hostile counter and initiative numbers are for the GM only (their settings are hidden from players).
+- Now / next: End turn sits centred under the current token.
+- The centre line snaps on the middle token (the semicircle: its centre slot) instead of the middle of the tracker.
+- A limited ribbon and Now / next keep their full size with fewer turns, like the semicircle.
+- The semicircle's empty room lets clicks through to the map.
+
 ## 0.1.0
 
 First version.

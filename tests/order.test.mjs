@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { windowTurns, arcLayout, orderNumbers, healthFraction, clampAnchor } from "../scripts/order.js";
+import { windowTurns, arcLayout, orderNumbers, healthFraction, clampAnchor, nextShown, isRevealed } from "../scripts/order.js";
 
 const turns = ["a", "b", "c", "d", "e"].map(id => ({ id }));
 const ids = list => list.map(e => (e.divider ? "|" : e.id)).join("");
@@ -217,4 +217,62 @@ test("movedBackwards", async () => {
   assert.equal(movedBackwards({ round: 2, turn: 1 }, { round: 2, turn: 2 }), false, "next turn");
   assert.equal(movedBackwards(undefined, { round: 2, turn: 2 }), false, "nothing known");
   assert.equal(movedBackwards({ round: 2, turn: 1 }, { round: 2, turn: 4 }, -1), true, "core says previous");
+});
+
+test("afterHidden: the next shown turn takes the hidden current turn's place, one step on", () => {
+  const out = windowTurns(turns, "c", { placement: "start", afterHidden: true });
+  assert.equal(ids(out.entries), "cde|ab");
+  assert.deepEqual(out.entries.filter(e => !e.divider).map(e => e.offset), [1, 2, 3, 4, 5]);
+});
+
+test("nextShown: the next visible turn after a hidden current one, wrapping", () => {
+  const all = ["a", "b", "c", "d"];
+  assert.equal(nextShown(all, new Set(["a", "d"]), "b"), "d");
+  assert.equal(nextShown(all, new Set(["a"]), "c"), "a");
+  assert.equal(nextShown(all, new Set(), "c"), null);
+  assert.equal(nextShown(all, new Set(["a"]), "x"), null);
+});
+
+test("isRevealed: round 1 shows allies, others once their turn has come", () => {
+  // pc, enemy, pc, enemy, pc, enemy; turn 0 = first pc.
+  const order = [true, false, true, false, true, false];
+  const seen = state => order.map((known, index) => (isRevealed({ index, known }, state) ? index : null))
+    .filter(i => i !== null);
+  assert.deepEqual(seen({ started: true, round: 1, turn: 0 }), [0, 2, 4]);
+  assert.deepEqual(seen({ started: true, round: 1, turn: 1 }), [0, 1, 2, 4]);
+  assert.deepEqual(seen({ started: true, round: 1, turn: 3 }), [0, 1, 2, 3, 4]);
+  assert.deepEqual(seen({ started: true, round: 2, turn: 0 }), [0, 1, 2, 3, 4, 5]);
+  assert.deepEqual(seen({ started: false, round: 0, turn: null }), [0, 2, 4]);
+});
+
+test("snapToCentre puts the pivot (the middle token) on the line", async () => {
+  const { snapToCentre } = await import("../scripts/order.js");
+  const vp = { width: 1000, height: 600 };
+  assert.deepEqual(snapToCentre({ x: 430, y: 40, width: 200, height: 50, pivotX: 80, pivotY: 25 }, vp),
+    { x: 420, y: 40, centerX: true, centerY: false });
+});
+
+test("padWindow keeps a limited tracker at full size with empty slots", async () => {
+  const { padWindow } = await import("../scripts/order.js");
+  const two = [{ id: "a" }, { id: "b" }];
+  const show = list => list.map(e => (e.slot ? (e.divider ? "/" : "_") : e.divider ? "|" : e.id)).join("");
+  const pad = (current, placement, max) => padWindow(windowTurns(two, current, { placement, max }).entries, { placement, max });
+  assert.equal(show(pad("a", "start", 5)), "ab___/");
+  assert.equal(show(pad("b", "start", 5)), "b|a___");
+  assert.equal(show(pad("a", "end", 5)), "/___ba");
+  assert.equal(show(pad("a", "center", 5)), "__ab_/");
+  assert.equal(show(pad("a", "fixed", 4)), "ab__");
+  assert.deepEqual(pad("a", "start", 4).filter(e => e.slot && !e.divider).map(e => e.offset), [2, 3]);
+  assert.deepEqual(pad("a", "end", 4).filter(e => e.slot && !e.divider).map(e => e.offset), [3, 2]);
+  assert.deepEqual(pad("a", "center", 5).filter(e => e.slot && !e.divider).map(e => e.offset), [-2, -1, 2]);
+  // Full or unlimited: unchanged except for the round line's room.
+  assert.equal(show(padWindow(windowTurns(turns, "a", { max: 3 }).entries, { max: 3 })), "abc/");
+  assert.equal(show(padWindow(windowTurns(turns, "a").entries, { max: 0 })), "abcde");
+});
+
+test("afterHidden, centred: the hidden current turn keeps offset 0, earlier turns stay negative", () => {
+  const out = windowTurns(turns, "c", { placement: "center", afterHidden: true });
+  assert.equal(ids(out.entries), "abcde");
+  assert.deepEqual(out.entries.map(e => e.offset), [-2, -1, 1, 2, 3]);
+  assert.ok(!out.entries.some(e => e.offset === 0));
 });

@@ -9,7 +9,10 @@
  *   refresh()                    re-render the tracker and the token badges
  *   toggle(force?)               show/hide the tracker for this user; returns the new state (Promise<boolean>)
  *   getOrder(combat?)            [{combatantId, tokenId, sceneId, name, initiative, position, active, defeated}]
- *                                for the combatants this user can see, in initiative order (position is 1-based)
+ *                                for the combatants this user can see, in initiative order (position is 1-based;
+ *                                initiative is null for players). Players see allies from the start and the others
+ *                                once their turn has come up in round 1; once revealed, always. Combatants hidden
+ *                                in the combat tracker (eye icon) are left out; a token hidden on the map isn't.
  *   resetLook()                  put this user's look settings back to the defaults (Promise)
  *   LOOK_DEFAULTS                the default look settings (frozen object)
  *
@@ -18,7 +21,7 @@
  */
 import { MODULE_ID } from "./util.js";
 import { registerSettings, resetLook, LOOK_DEFAULTS } from "./settings.js";
-import { refresh, toggle, place, markHovered, trackedCombat, visibleCombatants } from "./tracker.js";
+import { refresh, toggle, place, markHovered, trackedCombat, visibleCombatants, forgetRevealed } from "./tracker.js";
 import { refreshBadges, clearBadges } from "./badges.js";
 import { orderNumbers } from "./order.js";
 import { checkEncounter, primeEncounter, forgetEncounter, skipDeadTurn } from "./encounter.js";
@@ -37,7 +40,7 @@ function getOrder(combat = trackedCombat()) {
     tokenId: c.tokenId,
     sceneId: c.sceneId,
     name: c.name,
-    initiative: c.initiative,
+    initiative: game.user.isGM ? c.initiative : null,
     position: numbers.get(c.id),
     active: c.id === currentId,
     defeated: c.isDefeated
@@ -112,7 +115,10 @@ Hooks.on("updateCombat", (combat, changes, options) => {
   if ("turn" in changes || "round" in changes) skipDeadTurn(combat, options);
 });
 Hooks.on("combatStart", combat => skipDeadTurn(combat));
-Hooks.on("deleteCombat", combat => forgetEncounter(combat));
+Hooks.on("deleteCombat", combat => {
+  forgetEncounter(combat);
+  forgetRevealed(combat);
+});
 
 // Player colours (ring colour "player") and who is online.
 Hooks.on("updateUser", () => refresh());

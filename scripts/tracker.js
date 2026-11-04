@@ -12,7 +12,7 @@
 import { MODULE_ID, TEMPLATE_PATH, escapeHTML, setting, clamp, t } from "./util.js";
 import { countHostiles, isDown, isDead, JUMP_OPTION } from "./encounter.js";
 import { spawnFlames, attachFlameLayer } from "./flames.js";
-import { windowTurns, arcLayout, arcSideCount, arcExits, healthFraction, clampAnchor, sizeFactor, snapToCentre } from "./order.js";
+import { windowTurns, padWindow, arcLayout, arcSideCount, arcExits, healthFraction, clampAnchor, sizeFactor, snapToCentre, nextShown, isRevealed } from "./order.js";
 
 const ELEMENT_ID = "dxit-tracker";
 const GRIP = 24;
@@ -38,12 +38,81 @@ export function trackedCombat() {
   return game.combat ?? null;
 }
 
+/** Is the combatant on the players' side: a player character, or a token with Friendly disposition? */
+export function isAlly(combatant) {
+  if (combatant.hasPlayerOwner ?? combatant.actor?.hasPlayerOwner) return true;
+  return combatant.token?.disposition === CONST.TOKEN_DISPOSITIONS.FRIENDLY;
+}
+
+/** combat id -> ids of the combatants revealed to this player (loaded from the hidden client setting "revealed"). */
+let revealedCache = null;
+
+/** The saved reveals as combat id -> Set of combatant ids. */
+function readRevealed() {
+  const saved = game.settings.get(MODULE_ID, "revealed");
+  return new Map(Object.entries(saved && typeof saved === "object" ? saved : {})
+    .map(([id, ids]) => [id, new Set(Array.isArray(ids) ? ids : [])]));
+}
+
+function revealedMap() {
+  revealedCache ??= readRevealed();
+  return revealedCache;
+}
+
+function revealedSet(combatId) {
+  const map = revealedMap();
+  if (!map.has(combatId)) map.set(combatId, new Set());
+  return map.get(combatId);
+}
+
 /**
- * Combatants this user may see, in initiative order: the core tracker's rule (not hidden in the combat), and for
- * players also not a token the GM has hidden on the map, unless it is their own.
+ * Saves the revealed combatants (only for combats that still exist), at most a few times a second. Reveals saved
+ * meanwhile by another tab of this browser are kept.
+ */
+const saveRevealed = foundry.utils.debounce(() => {
+  if (!revealedCache) return;
+  // Deleted combats are dropped by the game.combats filter below, so merging can't bring them back.
+  for (const [id, ids] of readRevealed()) {
+    if (!revealedCache.has(id)) revealedCache.set(id, new Set());
+    for (const cid of ids) revealedCache.get(id).add(cid);
+  }
+  const data = {};
+  for (const [id, ids] of revealedCache) if (game.combats.has(id) && ids.size) data[id] = [...ids];
+  game.settings.set(MODULE_ID, "revealed", data).catch(err => console.error(`${MODULE_ID} | saving reveals failed`, err));
+}, 200);
+
+/**
+ * Combatants this user may see, in initiative order.
+ * GMs: the core tracker's rule (everyone; hidden ones are faded).
+ * Players: every combatant the GM hasn't hidden in the combat tracker (eye icon), whether or not its token is hidden
+ * on the map, but in the first round only their own and allies
+ * from the start; hostile and neutral combatants are revealed when their turn comes up (isRevealed). Once revealed,
+ * a combatant stays (remembered per combat, also through a step back or a reload).
  */
 export function visibleCombatants(combat) {
-  return (combat?.turns ?? []).filter(c => c.visible && (game.user.isGM || c.isOwner || !c.token?.hidden));
+  const turns = combat?.turns ?? [];
+  if (game.user.isGM) return turns.filter(c => c.visible);
+  if (!combat) return [];
+  const state = { started: !!combat.started, round: combat.round ?? 0, turn: combat.turn ?? null };
+  const revealed = revealedSet(combat.id);
+  let grew = false;
+  const list = turns.filter((c, index) => {
+    // Hidden with the combat tracker's eye icon: never shown to players (their own always are).
+    if (!c.visible) return false;
+    if (c.isOwner || isAlly(c) || revealed.has(c.id)) return true;
+    if (!isRevealed({ index, known: false }, state)) return false;
+    revealed.add(c.id);
+    grew = true;
+    return true;
+  });
+  if (grew) saveRevealed();
+  return list;
+}
+
+/** A combat ended: forget who was revealed in it. */
+export function forgetRevealed(combat) {
+  if (!revealedMap().delete(combat.id)) return;
+  saveRevealed();
 }
 
 /** Is the combatant's token invisible: hidden on the map by the GM, or carrying the Invisible status? */
@@ -110,7 +179,9 @@ async function turnData(c, currentId) {
   const hp = healthFraction(bar);
   const name = escapeHTML(c.name);
   const init = formatInitiative(c.initiative);
-  const lines = [`<strong>${name}</strong>`, `${escapeHTML(t("Tooltip.Initiative"))}: ${init}`];
+  const lines = [`<strong>${name}</strong>`];
+  // Initiative numbers are for the GM only.
+  if (game.user.isGM) lines.push(`${escapeHTML(t("Tooltip.Initiative"))}: ${init}`);
   if (hp !== null) lines.push(`${escapeHTML(t("Tooltip.Health"))}: ${Math.round(bar.value)} / ${Math.round(bar.max)}`);
   const down = isDown(c);
   if (c.isDefeated) lines.push(escapeHTML(t("Tooltip.Defeated")));
@@ -123,7 +194,7 @@ async function turnData(c, currentId) {
     id: c.id,
     name,
     img: await combatantImage(c),
-    initiative: init,
+    initiative: game.user.isGM ? init : "",
     active: c.id === currentId,
     owner: c.isOwner,
     hidden: c.hidden,
@@ -157,10 +228,19 @@ async function prepareContext(combat) {
   const vertical = setting("orientation") === "vertical";
   const size = clamp(setting("size"), 24, 96, 36);
   const currentId = combat.started ? combat.combatant?.id ?? null : null;
-  const turns = await Promise.all(visibleCombatants(combat).map(c => turnData(c, currentId)));
+  const shown = visibleCombatants(combat);
+  const turns = await Promise.all(shown.map(c => turnData(c, currentId)));
+  // The current turn is hidden from this user: centre on the next one they see, one step after the hidden one.
+  let anchorId = currentId;
+  let afterHidden = false;
+  if (currentId && !shown.some(c => c.id === currentId)) {
+    anchorId = nextShown(combat.turns.map(c => c.id), new Set(shown.map(c => c.id)), currentId);
+    afterHidden = !!anchorId;
+  }
 
   let entries;
   let more = 0;
+  let moreSlot = false;
   let arc = null;
   const taper = setting("sizing") === "taper";
   const limit = clamp(setting("maxVisible"), 0, 30, 0);
@@ -169,8 +249,9 @@ async function prepareContext(combat) {
     const reach = clamp(setting("arcReach"), 1, 3, 2);
     const stretch = clamp(setting("arcWidth"), 100, 250, 100) / 100;
     const sides = arcSideCount({ size, reach, taper, stretch });
-    const windowed = windowTurns(turns, currentId, { placement: "center", max: sides * 2 + 1 });
-    const chips = windowed.entries.filter(e => !e.divider && e.offset !== null);
+    const windowed = windowTurns(turns, anchorId, { placement: "center", max: sides * 2 + 1, afterHidden });
+    const onArc = e => e.offset !== null && Math.abs(e.offset) <= sides;
+    const chips = windowed.entries.filter(e => !e.divider && onArc(e));
     const flip = !!setting("arcFlip");
     // Always the full semicircle's size: with few turns the ends stay empty and the turns sit next to the current one.
     const full = Array.from({ length: sides * 2 + 1 }, (_, i) => i - sides);
@@ -181,7 +262,7 @@ async function prepareContext(combat) {
     let index = -1;
     for (const entry of windowed.entries) {
       if (!entry.divider) {
-        if (entry.offset === null) continue;
+        if (!onArc(entry)) continue;
         index++;
         const p = placed.items[index];
         // A fallen token stays dimmed on top of the arc's own fade (the inline opacity would override the CSS).
@@ -221,14 +302,19 @@ async function prepareContext(combat) {
     let placement = setting("placement");
     if (pill && placement === "fixed") placement = "start";
     const max = expanded ? 0 : (pill ? (placement === "center" ? 3 : 2) : limit);
-    ({ entries, more } = windowTurns(turns, currentId, { placement, max }));
+    ({ entries, more } = windowTurns(turns, anchorId, { placement, max, afterHidden }));
+    // A limited tracker keeps its full size with fewer turns (like the semicircle): empty slots, and the +N's room.
+    if (max > 0) {
+      entries = padWindow(entries, { placement, max });
+      moreSlot = !more;
+    }
   }
 
   // The round line keeps its identity (the two turns it sits between), so it can slide with the tokens.
   entries.forEach((entry, i) => {
-    if (!entry.divider) return;
-    const before = entries.slice(0, i).reverse().find(e => !e.divider);
-    const after = entries.slice(i + 1).find(e => !e.divider);
+    if (!entry.divider || entry.slot) return;
+    const before = entries.slice(0, i).reverse().find(e => !e.divider && !e.slot);
+    const after = entries.slice(i + 1).find(e => !e.divider && !e.slot);
     entry.flip = `round:${before?.id ?? ""}|${after?.id ?? ""}`;
   });
   for (const entry of entries) {
@@ -239,7 +325,8 @@ async function prepareContext(combat) {
 
   const current = combat.combatant;
   const isGM = game.user.isGM;
-  const hostiles = setting("showHostiles") && combat.started ? hostileContext(combat) : null;
+  // The hostile counter and the initiative numbers are for the GM only.
+  const hostiles = isGM && setting("showHostiles") && combat.started ? hostileContext(combat) : null;
   const showButtons = !!setting("showControls");
   const gmControls = showButtons && isGM;
   // NPCs (no player owner) in the combat that haven't rolled initiative yet: the GM gets a "Roll NPCs" button.
@@ -250,6 +337,7 @@ async function prepareContext(combat) {
   return {
     entries,
     more,
+    moreSlot,
     arc,
     canCollapse: !arc && expanded && (layout === "pill" || limit > 0),
     vertical,
@@ -259,7 +347,7 @@ async function prepareContext(combat) {
     showRound: setting("showRound"),
     hostiles,
     showStatus: !!setting("showRound") || !!hostiles,
-    showInitiative: setting("showInitiative"),
+    showInitiative: isGM && !!setting("showInitiative"),
     gmControls,
     unrolledNPCs,
     canEndTurn,
@@ -357,12 +445,48 @@ export function place() {
   let target = saved && Number.isFinite(saved.x) ? { x: saved.x, y: saved.y } : defaultAnchor();
   if (saved?.centerX || saved?.centerY) {
     // Snapped to the middle of the screen: stay centred whatever the tracker's size now.
-    const rect = element.getBoundingClientRect();
+    const pivot = tokenPivot();
     const centre = centreLines();
-    if (saved.centerX) target.x = centre.x - rect.width / 2;
-    if (saved.centerY) target.y = centre.y - rect.height / 2;
+    if (saved.centerX) target.x = centre.x - pivot.x;
+    if (saved.centerY) target.y = centre.y - pivot.y;
   }
   moveTo(clampAnchor(target, viewport(), GRIP));
+}
+
+/**
+ * The point that goes on a centre line, in screen pixels from the tracker's top-left corner: along the tokens, the
+ * middle token's centre (with an even number, halfway between the two middle ones; the semicircle: its centre slot),
+ * so the middle token is split in half by the line; across the tokens, the middle of the tracker. Uses layout
+ * offsets, so tokens that are still sliding don't move it.
+ */
+function tokenPivot() {
+  const rect = element.getBoundingClientRect();
+  const sx = element.offsetWidth ? rect.width / element.offsetWidth : 1;
+  const sy = element.offsetHeight ? rect.height / element.offsetHeight : 1;
+  const middleOf = el => {
+    let x = el.offsetWidth / 2;
+    let y = el.offsetHeight / 2;
+    for (let e = el; e && e !== element; e = e.offsetParent) {
+      x += e.offsetLeft;
+      y += e.offsetTop;
+    }
+    return { x, y };
+  };
+  let mid = null;
+  const arc = element.querySelector(".dxit-list.dxit-arc");
+  if (arc) mid = middleOf(arc);
+  else {
+    // Empty slots count: a tracker kept at its full size centres on its middle slot, like the semicircle.
+    const chips = [...element.querySelectorAll(".dxit-chip:not(.dxit-chip--leaving), .dxit-slot--turn")];
+    if (chips.length) {
+      const a = middleOf(chips[Math.floor((chips.length - 1) / 2)]);
+      const b = middleOf(chips[Math.floor(chips.length / 2)]);
+      mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    }
+  }
+  const box = { x: rect.width / 2, y: rect.height / 2 };
+  if (!mid) return box;
+  return element.classList.contains("dxit--vertical") ? { x: box.x, y: mid.y * sy } : { x: mid.x * sx, y: box.y };
 }
 
 /** The dashed centre lines shown while a dragged tracker is snapped to the middle of the screen. */
@@ -430,6 +554,7 @@ async function render() {
   attachFlameLayer(element);
   markNewDefeats(combat, fresh);
   fitArcEndTurn();
+  fitPillEndTurn();
   bindChips();
   place();
   animateChips(before, fresh);
@@ -479,6 +604,39 @@ function fitArcEndTurn() {
   box.style.margin = [
     Math.max(0, -rect.top), Math.max(0, rect.right - width), Math.max(0, rect.bottom - height), Math.max(0, -rect.left)
   ].map(v => `${Math.ceil(v)}px`).join(" ");
+}
+
+/**
+ * Now / next, horizontal: End turn sits centred under the current turn's token; the GM's other buttons go beside it
+ * on the side with more room. If the button would stick out on the left, the tokens get a margin so the frame grows.
+ * (Vertical: the buttons are centred under the column of tokens already.) Works in CSS pixels (offsets).
+ */
+function fitPillEndTurn() {
+  if (!element.classList.contains("dxit--layout-pill") || element.classList.contains("dxit--vertical")) return;
+  const main = element.querySelector(".dxit-main");
+  const actions = element.querySelector(".dxit-actions");
+  const button = actions?.querySelector(".dxit-end-turn");
+  const chip = main?.querySelector(".dxit-chip--active");
+  if (!button || !chip) return;
+  const controls = actions.querySelector(".dxit-controls");
+  for (const el of [main, actions]) el.style.alignSelf = "stretch";
+  actions.style.justifyContent = "flex-start";
+  const gap = parseFloat(getComputedStyle(actions).columnGap) || 0;
+  // Both rows now start at the frame's content edge, so their offsets compare directly.
+  const centre = chip.offsetLeft + chip.offsetWidth / 2 - actions.offsetLeft;
+  const bw = button.offsetWidth;
+  const cw = controls ? controls.offsetWidth + gap : 0;
+  let left = centre - bw / 2;
+  const controlsLeft = !!controls && centre > actions.clientWidth / 2;
+  const start = controlsLeft ? left - cw : left;
+  if (start < 0) {
+    main.style.marginLeft = `${Math.ceil(-start)}px`;
+    left -= start;
+  }
+  button.style.order = "1";
+  if (controls) controls.style.order = controlsLeft ? "0" : "2";
+  const first = controlsLeft ? controls : button;
+  first.style.marginLeft = `${Math.max(0, Math.round(controlsLeft ? left - cw : left))}px`;
 }
 
 /** Everything that moves between renders: the chips (by combatant id) and [data-flip] parts, plus the frame size. */
@@ -618,6 +776,14 @@ function animateChips(before, fresh) {
       continue;
     }
     if (!old) {
+      if (isChip && el.classList.contains("dxit-chip--active")) {
+        // A combatant revealed as its turn starts (or a new current turn): slides into the current slot from beside
+        // the track while it fades in; the turn it replaces slides away to its new place.
+        const shift = -(now.width || 1) * 1.2;
+        const from = element.classList.contains("dxit--vertical") ? `translate(${shift}px, 0)` : `translate(0, ${shift}px)`;
+        el.animate([{ opacity: 0, transform: from }, { transform: "none" }], timing);
+        continue;
+      }
       el.animate([{ opacity: 0, transform: isChip ? "scale(0.6)" : "none" }, {}], { duration: MOVE_MS, easing: "ease-out" });
       continue;
     }
@@ -804,7 +970,9 @@ function onGripDown(event) {
   const lines = guides();
   const move = e => {
     const size = element.getBoundingClientRect();
-    const free = { x: base.x + e.clientX - start.x, y: base.y + e.clientY - start.y, width: size.width, height: size.height };
+    const pivot = tokenPivot();
+    const free = { x: base.x + e.clientX - start.x, y: base.y + e.clientY - start.y, width: size.width, height: size.height,
+      pivotX: pivot.x, pivotY: pivot.y };
     const centre = centreLines();
     lines.v.style.left = `${centre.x}px`;
     lines.h.style.top = `${centre.y}px`;
