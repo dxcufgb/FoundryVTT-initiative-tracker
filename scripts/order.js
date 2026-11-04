@@ -18,14 +18,15 @@ export const PLACEMENTS = ["start", "center", "end", "fixed"];
  * Every turn entry gets `offset`: its distance from the current turn in initiative order (negative = earlier).
  * @param {object[]} turns         visible turns in initiative order
  * @param {string|null} currentId  id of the current turn
- * With `afterHidden`, the real current turn is one the user can't see and `currentId` is the next one they can: it
- * sits where the current turn would, but its offset is 1 (the hidden turn is offset 0), and so on for the others.
+ * With `afterHidden`, the real current turn is one the user can't see and `currentId` is the next one they can: the
+ * hidden turn keeps offset 0 (no turn shown gets it), so `currentId` and the turns after it are one further on
+ * (1, 2, …) while the earlier ones stay at -1, -2, …
  * @param {{placement?: string, max?: number, afterHidden?: boolean}} options  max 0 or less = everyone
  * @returns {{entries: object[], more: number}}  `more` = turns left out
  */
 export function windowTurns(turns, currentId, { placement = "start", max = 0, afterHidden = false } = {}) {
   const out = placeTurns(turns, currentId, placement, max);
-  if (afterHidden) for (const entry of out.entries) if (Number.isFinite(entry.offset)) entry.offset += 1;
+  if (afterHidden) for (const entry of out.entries) if (Number.isFinite(entry.offset) && entry.offset >= 0) entry.offset += 1;
   return out;
 }
 

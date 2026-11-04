@@ -47,19 +47,35 @@ export function isAlly(combatant) {
 /** combat id -> ids of the combatants revealed to this player (loaded from the hidden client setting "revealed"). */
 let revealedCache = null;
 
-function revealedSet(combatId) {
-  if (!revealedCache) {
-    const saved = game.settings.get(MODULE_ID, "revealed");
-    revealedCache = new Map(Object.entries(saved && typeof saved === "object" ? saved : {})
-      .map(([id, ids]) => [id, new Set(Array.isArray(ids) ? ids : [])]));
-  }
-  if (!revealedCache.has(combatId)) revealedCache.set(combatId, new Set());
-  return revealedCache.get(combatId);
+/** The saved reveals as combat id -> Set of combatant ids. */
+function readRevealed() {
+  const saved = game.settings.get(MODULE_ID, "revealed");
+  return new Map(Object.entries(saved && typeof saved === "object" ? saved : {})
+    .map(([id, ids]) => [id, new Set(Array.isArray(ids) ? ids : [])]));
 }
 
-/** Saves the revealed combatants (only for combats that still exist), at most a few times a second. */
+function revealedMap() {
+  revealedCache ??= readRevealed();
+  return revealedCache;
+}
+
+function revealedSet(combatId) {
+  const map = revealedMap();
+  if (!map.has(combatId)) map.set(combatId, new Set());
+  return map.get(combatId);
+}
+
+/**
+ * Saves the revealed combatants (only for combats that still exist), at most a few times a second. Reveals saved
+ * meanwhile by another tab of this browser are kept.
+ */
 const saveRevealed = foundry.utils.debounce(() => {
   if (!revealedCache) return;
+  // Deleted combats are dropped by the game.combats filter below, so merging can't bring them back.
+  for (const [id, ids] of readRevealed()) {
+    if (!revealedCache.has(id)) revealedCache.set(id, new Set());
+    for (const cid of ids) revealedCache.get(id).add(cid);
+  }
   const data = {};
   for (const [id, ids] of revealedCache) if (game.combats.has(id) && ids.size) data[id] = [...ids];
   game.settings.set(MODULE_ID, "revealed", data).catch(err => console.error(`${MODULE_ID} | saving reveals failed`, err));
@@ -92,7 +108,7 @@ export function visibleCombatants(combat) {
 
 /** A combat ended: forget who was revealed in it. */
 export function forgetRevealed(combat) {
-  if (!revealedCache?.delete(combat.id)) return;
+  if (!revealedMap().delete(combat.id)) return;
   saveRevealed();
 }
 

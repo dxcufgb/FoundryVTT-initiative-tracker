@@ -269,3 +269,10 @@ test("padWindow keeps a limited tracker at full size with empty slots", async ()
   assert.equal(show(padWindow(windowTurns(turns, "a", { max: 3 }).entries, { max: 3 })), "abc/");
   assert.equal(show(padWindow(windowTurns(turns, "a").entries, { max: 0 })), "abcde");
 });
+
+test("afterHidden, centred: the hidden current turn keeps offset 0, earlier turns stay negative", () => {
+  const out = windowTurns(turns, "c", { placement: "center", afterHidden: true });
+  assert.equal(ids(out.entries), "abcde");
+  assert.deepEqual(out.entries.map(e => e.offset), [-2, -1, 1, 2, 3]);
+  assert.ok(!out.entries.some(e => e.offset === 0));
+});

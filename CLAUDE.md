@@ -51,7 +51,7 @@ settings, so every player sets it up their own way. No build step, no npm depend
   the same list (no gaps that give a hidden or unrevealed combatant away). A revealed current turn slides into the
   current slot from beside the track while fading in (`animateChips`).
 - When the current turn is hidden from a player, the tracker centres on the next turn they see (`nextShown`,
-  `windowTurns` `afterHidden`: offsets start at 1), so the tokens never all drop out.
+  `windowTurns` `afterHidden`: the hidden turn keeps offset 0, so no shown turn is drawn as current; later turns 1, 2, …), so the tokens never all drop out.
 - The hostile counter (`showHostiles`) and initiative numbers (`showInitiative`, tooltip, `getOrder().initiative`)
   are GM only; the settings window hides those two from players (`GM_ONLY`).
 - Players see the tracker only once the combat has started; GMs also before, with a Begin combat button.
