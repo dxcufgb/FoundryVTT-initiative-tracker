@@ -42,10 +42,16 @@ settings, so every player sets it up their own way. No build step, no npm depend
   module, do not edit here.
 
 ## Invariants
-- The tracker follows `game.combat` (the combat the core tracker shows) and only lists `combatant.visible` turns
-  (for players also not tokens hidden on the map unless they own them), so
-  players never see hidden combatants, and the numbers on tokens count only visible ones (no gaps that give a hidden
-  combatant away).
+- The tracker follows `game.combat` (the combat the core tracker shows). GMs see every `combatant.visible` turn.
+  Players see their own combatants and every combatant whose token isn't hidden on the map (`visibleCombatants`),
+  but in round 1 only allies (player-owned or Friendly) from the start: hostile and neutral ones are revealed when
+  their turn comes up (`isRevealed`: index <= combat.turn), so the order isn't given away. The numbers on tokens use
+  the same list (no gaps that give a hidden or unrevealed combatant away). A revealed current turn slides into the
+  current slot from beside the track while fading in (`animateChips`).
+- When the current turn is hidden from a player, the tracker centres on the next turn they see (`nextShown`,
+  `windowTurns` `afterHidden`: offsets start at 1), so the tokens never all drop out.
+- The hostile counter (`showHostiles`) and initiative numbers (`showInitiative`, tooltip, `getOrder().initiative`)
+  are GM only; the settings window hides those two from players (`GM_ONLY`).
 - Players see the tracker only once the combat has started; GMs also before, with a Begin combat button.
 - Health comes from the token's `bar1` (`TokenDocument#getBarAttribute`), never system data, and players see it only
   for combatants they own unless the `playerHealth` world setting allows more.

@@ -9,7 +9,9 @@
  *   refresh()                    re-render the tracker and the token badges
  *   toggle(force?)               show/hide the tracker for this user; returns the new state (Promise<boolean>)
  *   getOrder(combat?)            [{combatantId, tokenId, sceneId, name, initiative, position, active, defeated}]
- *                                for the combatants this user can see, in initiative order (position is 1-based)
+ *                                for the combatants this user can see, in initiative order (position is 1-based;
+ *                                initiative is null for players). Players see allies from the start and the others
+ *                                once their turn has come up in round 1.
  *   resetLook()                  put this user's look settings back to the defaults (Promise)
  *   LOOK_DEFAULTS                the default look settings (frozen object)
  *
@@ -37,7 +39,7 @@ function getOrder(combat = trackedCombat()) {
     tokenId: c.tokenId,
     sceneId: c.sceneId,
     name: c.name,
-    initiative: c.initiative,
+    initiative: game.user.isGM ? c.initiative : null,
     position: numbers.get(c.id),
     active: c.id === currentId,
     defeated: c.isDefeated

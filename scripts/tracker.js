@@ -12,7 +12,7 @@
 import { MODULE_ID, TEMPLATE_PATH, escapeHTML, setting, clamp, t } from "./util.js";
 import { countHostiles, isDown, isDead, JUMP_OPTION } from "./encounter.js";
 import { spawnFlames, attachFlameLayer } from "./flames.js";
-import { windowTurns, arcLayout, arcSideCount, arcExits, healthFraction, clampAnchor, sizeFactor, snapToCentre } from "./order.js";
+import { windowTurns, arcLayout, arcSideCount, arcExits, healthFraction, clampAnchor, sizeFactor, snapToCentre, nextShown, isRevealed } from "./order.js";
 
 const ELEMENT_ID = "dxit-tracker";
 const GRIP = 24;
@@ -38,12 +38,28 @@ export function trackedCombat() {
   return game.combat ?? null;
 }
 
+/** Is the combatant on the players' side: a player character, or a token with Friendly disposition? */
+export function isAlly(combatant) {
+  if (combatant.hasPlayerOwner ?? combatant.actor?.hasPlayerOwner) return true;
+  return combatant.token?.disposition === CONST.TOKEN_DISPOSITIONS.FRIENDLY;
+}
+
 /**
- * Combatants this user may see, in initiative order: the core tracker's rule (not hidden in the combat), and for
- * players also not a token the GM has hidden on the map, unless it is their own.
+ * Combatants this user may see, in initiative order.
+ * GMs: the core tracker's rule (everyone; hidden ones are faded).
+ * Players: their own, and every combatant whose token isn't hidden on the map (a combatant without a token on a
+ * scene: unless it is hidden in the combat). In the first round, only allies are known from the start; hostile and
+ * neutral combatants are revealed when their turn comes up (isRevealed).
  */
 export function visibleCombatants(combat) {
-  return (combat?.turns ?? []).filter(c => c.visible && (game.user.isGM || c.isOwner || !c.token?.hidden));
+  const turns = combat?.turns ?? [];
+  if (game.user.isGM) return turns.filter(c => c.visible);
+  const state = { started: !!combat?.started, round: combat?.round ?? 0, turn: combat?.turn ?? null };
+  return turns.filter((c, index) => {
+    if (c.isOwner) return true;
+    const shown = c.token ? !c.token.hidden : c.visible;
+    return shown && isRevealed({ index, known: isAlly(c) }, state);
+  });
 }
 
 /** Is the combatant's token invisible: hidden on the map by the GM, or carrying the Invisible status? */
@@ -110,7 +126,9 @@ async function turnData(c, currentId) {
   const hp = healthFraction(bar);
   const name = escapeHTML(c.name);
   const init = formatInitiative(c.initiative);
-  const lines = [`<strong>${name}</strong>`, `${escapeHTML(t("Tooltip.Initiative"))}: ${init}`];
+  const lines = [`<strong>${name}</strong>`];
+  // Initiative numbers are for the GM only.
+  if (game.user.isGM) lines.push(`${escapeHTML(t("Tooltip.Initiative"))}: ${init}`);
   if (hp !== null) lines.push(`${escapeHTML(t("Tooltip.Health"))}: ${Math.round(bar.value)} / ${Math.round(bar.max)}`);
   const down = isDown(c);
   if (c.isDefeated) lines.push(escapeHTML(t("Tooltip.Defeated")));
@@ -123,7 +141,7 @@ async function turnData(c, currentId) {
     id: c.id,
     name,
     img: await combatantImage(c),
-    initiative: init,
+    initiative: game.user.isGM ? init : "",
     active: c.id === currentId,
     owner: c.isOwner,
     hidden: c.hidden,
@@ -157,7 +175,15 @@ async function prepareContext(combat) {
   const vertical = setting("orientation") === "vertical";
   const size = clamp(setting("size"), 24, 96, 36);
   const currentId = combat.started ? combat.combatant?.id ?? null : null;
-  const turns = await Promise.all(visibleCombatants(combat).map(c => turnData(c, currentId)));
+  const shown = visibleCombatants(combat);
+  const turns = await Promise.all(shown.map(c => turnData(c, currentId)));
+  // The current turn is hidden from this user: centre on the next one they see, one step after the hidden one.
+  let anchorId = currentId;
+  let afterHidden = false;
+  if (currentId && !shown.some(c => c.id === currentId)) {
+    anchorId = nextShown(combat.turns.map(c => c.id), new Set(shown.map(c => c.id)), currentId);
+    afterHidden = !!anchorId;
+  }
 
   let entries;
   let more = 0;
@@ -169,8 +195,9 @@ async function prepareContext(combat) {
     const reach = clamp(setting("arcReach"), 1, 3, 2);
     const stretch = clamp(setting("arcWidth"), 100, 250, 100) / 100;
     const sides = arcSideCount({ size, reach, taper, stretch });
-    const windowed = windowTurns(turns, currentId, { placement: "center", max: sides * 2 + 1 });
-    const chips = windowed.entries.filter(e => !e.divider && e.offset !== null);
+    const windowed = windowTurns(turns, anchorId, { placement: "center", max: sides * 2 + 1, afterHidden });
+    const onArc = e => e.offset !== null && Math.abs(e.offset) <= sides;
+    const chips = windowed.entries.filter(e => !e.divider && onArc(e));
     const flip = !!setting("arcFlip");
     // Always the full semicircle's size: with few turns the ends stay empty and the turns sit next to the current one.
     const full = Array.from({ length: sides * 2 + 1 }, (_, i) => i - sides);
@@ -181,7 +208,7 @@ async function prepareContext(combat) {
     let index = -1;
     for (const entry of windowed.entries) {
       if (!entry.divider) {
-        if (entry.offset === null) continue;
+        if (!onArc(entry)) continue;
         index++;
         const p = placed.items[index];
         // A fallen token stays dimmed on top of the arc's own fade (the inline opacity would override the CSS).
@@ -221,7 +248,7 @@ async function prepareContext(combat) {
     let placement = setting("placement");
     if (pill && placement === "fixed") placement = "start";
     const max = expanded ? 0 : (pill ? (placement === "center" ? 3 : 2) : limit);
-    ({ entries, more } = windowTurns(turns, currentId, { placement, max }));
+    ({ entries, more } = windowTurns(turns, anchorId, { placement, max, afterHidden }));
   }
 
   // The round line keeps its identity (the two turns it sits between), so it can slide with the tokens.
@@ -239,7 +266,8 @@ async function prepareContext(combat) {
 
   const current = combat.combatant;
   const isGM = game.user.isGM;
-  const hostiles = setting("showHostiles") && combat.started ? hostileContext(combat) : null;
+  // The hostile counter and the initiative numbers are for the GM only.
+  const hostiles = isGM && setting("showHostiles") && combat.started ? hostileContext(combat) : null;
   const showButtons = !!setting("showControls");
   const gmControls = showButtons && isGM;
   // NPCs (no player owner) in the combat that haven't rolled initiative yet: the GM gets a "Roll NPCs" button.
@@ -259,7 +287,7 @@ async function prepareContext(combat) {
     showRound: setting("showRound"),
     hostiles,
     showStatus: !!setting("showRound") || !!hostiles,
-    showInitiative: setting("showInitiative"),
+    showInitiative: isGM && !!setting("showInitiative"),
     gmControls,
     unrolledNPCs,
     canEndTurn,
@@ -618,6 +646,14 @@ function animateChips(before, fresh) {
       continue;
     }
     if (!old) {
+      if (isChip && el.classList.contains("dxit-chip--active")) {
+        // A combatant revealed as its turn starts (or a new current turn): slides into the current slot from beside
+        // the track while it fades in; the turn it replaces slides away to its new place.
+        const shift = -(now.width || 1) * 1.2;
+        const from = element.classList.contains("dxit--vertical") ? `translate(${shift}px, 0)` : `translate(0, ${shift}px)`;
+        el.animate([{ opacity: 0, transform: from }, { transform: "none" }], timing);
+        continue;
+      }
       el.animate([{ opacity: 0, transform: isChip ? "scale(0.6)" : "none" }, {}], { duration: MOVE_MS, easing: "ease-out" });
       continue;
     }

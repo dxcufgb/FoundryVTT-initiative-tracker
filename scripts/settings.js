@@ -39,6 +39,8 @@ export const LOOK_DEFAULTS = Object.freeze({
 /** Settings that only matter for one kind of tracker; the settings window hides the others. */
 const ARC_ONLY = ["arcReach", "arcWidth", "arcFade", "arcFlip"];
 const LINEAR_ONLY = ["placement", "maxVisible"];
+/** Settings only GMs see and use (the hostile counter and initiative numbers are never shown to players). */
+export const GM_ONLY = ["showHostiles", "showInitiative"];
 
 /** Settings that change the token badges rather than (or as well as) the tracker. */
 const BADGE_KEYS = new Set(["accent", "tokenBadges", "badgeScale"]);
@@ -177,20 +179,22 @@ function bindPreview(app, html) {
 
 /**
  * Shows only the settings for the layout picked in the settings window: the semicircle's own settings for the
- * semicircle, and the ribbon / now-next settings for those.
+ * semicircle, and the ribbon / now-next settings for those. Players don't get the GM-only ones.
  */
 function showLayoutSettings(root) {
   const layoutField = root.querySelector(`[name="${MODULE_ID}.layout"]`);
-  if (!layoutField) return;
-  const arc = layoutField.value === "arc";
+  const arc = layoutField?.value === "arc";
   const toggle = (keys, show) => {
     for (const key of keys) {
       const group = root.querySelector(`[name="${MODULE_ID}.${key}"]`)?.closest(".form-group");
       if (group) group.style.display = show ? "" : "none";
     }
   };
-  toggle(ARC_ONLY, arc);
-  toggle(LINEAR_ONLY, !arc);
+  if (layoutField) {
+    toggle(ARC_ONLY, arc);
+    toggle(LINEAR_ONLY, !arc);
+  }
+  if (!game.user.isGM) toggle(GM_ONLY, false);
 }
 
 function endPreview() {

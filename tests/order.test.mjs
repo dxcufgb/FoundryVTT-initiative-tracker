@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { windowTurns, arcLayout, orderNumbers, healthFraction, clampAnchor } from "../scripts/order.js";
+import { windowTurns, arcLayout, orderNumbers, healthFraction, clampAnchor, nextShown, isRevealed } from "../scripts/order.js";
 
 const turns = ["a", "b", "c", "d", "e"].map(id => ({ id }));
 const ids = list => list.map(e => (e.divider ? "|" : e.id)).join("");
@@ -217,4 +217,30 @@ test("movedBackwards", async () => {
   assert.equal(movedBackwards({ round: 2, turn: 1 }, { round: 2, turn: 2 }), false, "next turn");
   assert.equal(movedBackwards(undefined, { round: 2, turn: 2 }), false, "nothing known");
   assert.equal(movedBackwards({ round: 2, turn: 1 }, { round: 2, turn: 4 }, -1), true, "core says previous");
+});
+
+test("afterHidden: the next shown turn takes the hidden current turn's place, one step on", () => {
+  const out = windowTurns(turns, "c", { placement: "start", afterHidden: true });
+  assert.equal(ids(out.entries), "cde|ab");
+  assert.deepEqual(out.entries.filter(e => !e.divider).map(e => e.offset), [1, 2, 3, 4, 5]);
+});
+
+test("nextShown: the next visible turn after a hidden current one, wrapping", () => {
+  const all = ["a", "b", "c", "d"];
+  assert.equal(nextShown(all, new Set(["a", "d"]), "b"), "d");
+  assert.equal(nextShown(all, new Set(["a"]), "c"), "a");
+  assert.equal(nextShown(all, new Set(), "c"), null);
+  assert.equal(nextShown(all, new Set(["a"]), "x"), null);
+});
+
+test("isRevealed: round 1 shows allies, others once their turn has come", () => {
+  // pc, enemy, pc, enemy, pc, enemy; turn 0 = first pc.
+  const order = [true, false, true, false, true, false];
+  const seen = state => order.map((known, index) => (isRevealed({ index, known }, state) ? index : null))
+    .filter(i => i !== null);
+  assert.deepEqual(seen({ started: true, round: 1, turn: 0 }), [0, 2, 4]);
+  assert.deepEqual(seen({ started: true, round: 1, turn: 1 }), [0, 1, 2, 4]);
+  assert.deepEqual(seen({ started: true, round: 1, turn: 3 }), [0, 1, 2, 3, 4]);
+  assert.deepEqual(seen({ started: true, round: 2, turn: 0 }), [0, 1, 2, 3, 4, 5]);
+  assert.deepEqual(seen({ started: false, round: 0, turn: null }), [0, 2, 4]);
 });

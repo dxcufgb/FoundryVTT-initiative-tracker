@@ -18,10 +18,18 @@ export const PLACEMENTS = ["start", "center", "end", "fixed"];
  * Every turn entry gets `offset`: its distance from the current turn in initiative order (negative = earlier).
  * @param {object[]} turns         visible turns in initiative order
  * @param {string|null} currentId  id of the current turn
- * @param {{placement?: string, max?: number}} options  max 0 or less = everyone
+ * With `afterHidden`, the real current turn is one the user can't see and `currentId` is the next one they can: it
+ * sits where the current turn would, but its offset is 1 (the hidden turn is offset 0), and so on for the others.
+ * @param {{placement?: string, max?: number, afterHidden?: boolean}} options  max 0 or less = everyone
  * @returns {{entries: object[], more: number}}  `more` = turns left out
  */
-export function windowTurns(turns, currentId, { placement = "start", max = 0 } = {}) {
+export function windowTurns(turns, currentId, { placement = "start", max = 0, afterHidden = false } = {}) {
+  const out = placeTurns(turns, currentId, placement, max);
+  if (afterHidden) for (const entry of out.entries) if (Number.isFinite(entry.offset)) entry.offset += 1;
+  return out;
+}
+
+function placeTurns(turns, currentId, placement, max) {
   const list = Array.isArray(turns) ? turns : [];
   const n = list.length;
   if (!n) return { entries: [], more: 0 };
@@ -45,6 +53,37 @@ export function windowTurns(turns, currentId, { placement = "start", max = 0 } =
   }
   if (placement === "end") entries.reverse();
   return { entries, more };
+}
+
+/**
+ * The turn to centre the tracker on when the current one is hidden from the user: the next shown turn after it in
+ * initiative order (wrapping round), or null.
+ * @param {string[]} allIds    every turn in initiative order
+ * @param {Set<string>} shown  the ids the user sees
+ * @param {string|null} currentId
+ */
+export function nextShown(allIds, shown, currentId) {
+  const start = allIds.indexOf(currentId);
+  if (start < 0) return null;
+  for (let k = 1; k <= allIds.length; k++) {
+    const id = allIds[(start + k) % allIds.length];
+    if (shown.has(id)) return id;
+  }
+  return null;
+}
+
+/**
+ * Round 1 reveal, for players: allies are known from the start; everyone else only once their turn has come up in
+ * the first round (their index in the order is at or before the current turn). From round 2 on, everyone. Before the
+ * combat starts only allies (the order isn't settled yet).
+ * @param {{index: number, known: boolean}} turn
+ * @param {{started: boolean, round: number, turn: number|null}} combat
+ */
+export function isRevealed({ index, known }, { started, round, turn }) {
+  if (known) return true;
+  if (!started) return false;
+  if (round > 1) return true;
+  return Number.isInteger(turn) && index <= turn;
 }
 
 /** Most turns a semicircle shows on each side of the current one. */
