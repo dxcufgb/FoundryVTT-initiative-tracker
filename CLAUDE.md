@@ -43,7 +43,8 @@ settings, so every player sets it up their own way. No build step, no npm depend
 
 ## Invariants
 - The tracker follows `game.combat` (the combat the core tracker shows). GMs see every `combatant.visible` turn.
-  Players see every combatant whatever its token's visibility (`visibleCombatants`), but in round 1 only their own
+  Players see every `combatant.visible` combatant (the combat tracker's eye icon hides one from them) whatever its
+  token's visibility on the map (`visibleCombatants`), but in round 1 only their own
   and allies (player-owned or Friendly) from the start: hostile and neutral ones are revealed when their turn comes
   up (`isRevealed`: index <= combat.turn), so the order isn't given away. Once revealed, a combatant never
   disappears: reveals are remembered per combat in the hidden client setting `revealed` (survives a step back or a

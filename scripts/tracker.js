@@ -84,7 +84,8 @@ const saveRevealed = foundry.utils.debounce(() => {
 /**
  * Combatants this user may see, in initiative order.
  * GMs: the core tracker's rule (everyone; hidden ones are faded).
- * Players: every combatant, whether or not its token is hidden, but in the first round only their own and allies
+ * Players: every combatant the GM hasn't hidden in the combat tracker (eye icon), whether or not its token is hidden
+ * on the map, but in the first round only their own and allies
  * from the start; hostile and neutral combatants are revealed when their turn comes up (isRevealed). Once revealed,
  * a combatant stays (remembered per combat, also through a step back or a reload).
  */
@@ -96,6 +97,8 @@ export function visibleCombatants(combat) {
   const revealed = revealedSet(combat.id);
   let grew = false;
   const list = turns.filter((c, index) => {
+    // Hidden with the combat tracker's eye icon: never shown to players (their own always are).
+    if (!c.visible) return false;
     if (c.isOwner || isAlly(c) || revealed.has(c.id)) return true;
     if (!isRevealed({ index, known: false }, state)) return false;
     revealed.add(c.id);

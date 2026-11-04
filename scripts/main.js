@@ -11,8 +11,8 @@
  *   getOrder(combat?)            [{combatantId, tokenId, sceneId, name, initiative, position, active, defeated}]
  *                                for the combatants this user can see, in initiative order (position is 1-based;
  *                                initiative is null for players). Players see allies from the start and the others
- *                                once their turn has come up in round 1; once revealed, always. A token's hidden
- *                                state doesn't matter.
+ *                                once their turn has come up in round 1; once revealed, always. Combatants hidden
+ *                                in the combat tracker (eye icon) are left out; a token hidden on the map isn't.
  *   resetLook()                  put this user's look settings back to the defaults (Promise)
  *   LOOK_DEFAULTS                the default look settings (frozen object)
  *

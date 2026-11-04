@@ -36,7 +36,7 @@
       },
       "layout": {
         "Name": "Layout",
-        "Hint": "Ribbon shows every combatant's token. Now / next shows only whose turn it is and the next one; click the + to see everyone. Semicircle puts whose turn it is in the centre with the turns before and after it fading out along a half circle. The settings below change to match the layout you pick.",
+        "Hint": "Ribbon shows every combatant's token. Now / next shows only whose turn it is and the next one (when the GM has hidden that turn from you, the next one you can see); click the + to see everyone. Semicircle puts whose turn it is in the centre with the turns before and after it fading out along a half circle. The settings below change to match the layout you pick.",
         "Choices": {
           "ribbon": "Ribbon: everyone",
           "pill": "Now / next",
