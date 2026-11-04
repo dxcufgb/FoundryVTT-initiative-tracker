@@ -2,7 +2,7 @@
   "id": "dxcufgbs-initiative-tracker",
   "title": "Dxcufgb's Initiative Tracker",
   "description": "A small, tidy initiative order over the map instead of the big combat tracker: a slim horizontal or vertical row of every combatant's token, a now / next pill, or a semicircle with the current combatant in the centre, plus optional turn-order numbers on the tokens. Tokens slide into place as turns change, defeated combatants fade to grey, and every player sets up their own size, layout and colours.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "authors": [
     {
       "name": "Dxcufgb",
