@@ -576,7 +576,7 @@ async function render() {
   slideArcChips(before, leaving, fresh);
   renderCount++;
   lastRender = {
-    layout: String(setting("layout")),
+    layout: ["ribbon", "pill", "arc"].includes(setting("layout")) ? setting("layout") : "other",
     vertical: context.vertical,
     chips: context.entries.filter(e => !e.divider && !e.slot).length,
     slots: context.entries.filter(e => e.slot).length,
@@ -968,10 +968,13 @@ function onDoubleClick(event) {
   if (actor?.testUserPermission(game.user, "OBSERVER")) actor.sheet.render(true);
 }
 
+/** The tracker's buttons (data-action), for breadcrumbs. */
+const ACTIONS = ["expand", "previous", "next", "endTurn", "start", "rollNPCs", "popout"];
+
 async function onAction(event, action) {
   event.preventDefault();
   const combat = trackedCombat();
-  crumb("tracker.action", { action: String(action), gm: game.user.isGM });
+  crumb("tracker.action", { action: ACTIONS.includes(action) ? action : "other", gm: game.user.isGM });
   switch (action) {
     case "expand":
       expanded = !expanded;
