@@ -8,6 +8,7 @@
 import { MODULE_ID, setting, clamp } from "./util.js";
 import { orderNumbers } from "./order.js";
 import { trackedCombat, visibleCombatants } from "./tracker.js";
+import { crumb, errorName } from "./debug-recorder.js";
 
 const BADGE_NAME = "dxitBadge";
 /** tokenId -> badge container */
@@ -84,6 +85,7 @@ function drawAll() {
     }
   } catch (err) {
     console.error(`${MODULE_ID} | token badges failed`, err);
+    crumb("error.caught", { area: "badges", error: errorName(err) });
   }
 }
 
@@ -93,4 +95,9 @@ export const refreshBadges = foundry.utils.debounce(drawAll, 50);
 /** The canvas is being torn down: forget the badges (their tokens are destroyed with it). */
 export function clearBadges() {
   badges.clear();
+}
+
+/** How many badges are drawn (for the Debug Recorder snapshot). */
+export function badgeCount() {
+  return badges.size;
 }

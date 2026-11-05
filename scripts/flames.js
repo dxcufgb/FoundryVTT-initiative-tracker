@@ -19,6 +19,11 @@ export function attachFlameLayer(element) {
   if (layer.parentElement !== element) element.append(layer);
 }
 
+/** How many flame bursts are playing (for the Debug Recorder snapshot). */
+export function activeFlames() {
+  return bursts.size;
+}
+
 function lerpColor(t) {
   const x = Math.min(PALETTE.length - 1.001, Math.max(0, t * (PALETTE.length - 1)));
   const i = Math.floor(x);
@@ -28,18 +33,19 @@ function lerpColor(t) {
 
 /**
  * Starts flames on the chip of `combatantId` in `element`. Does nothing if that chip isn't shown or the player
- * prefers reduced motion.
+ * prefers reduced motion. Returns whether flames started.
  */
 export function spawnFlames(element, combatantId) {
-  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
   const find = () => element?.querySelector(`.dxit-chip[data-combatant-id="${CSS.escape(combatantId)}"]`);
-  if (!find()) return;
+  if (!find()) return false;
   attachFlameLayer(element);
   const canvas = document.createElement("canvas");
   canvas.className = "dxit-flames";
   layer.append(canvas);
   bursts.add({ canvas, find, start: performance.now(), last: performance.now(), particles: [], size: 0 });
   frame ??= requestAnimationFrame(step);
+  return true;
 }
 
 function step(now) {

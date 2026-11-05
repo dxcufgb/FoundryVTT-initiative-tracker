@@ -68,3 +68,14 @@ test("module.json ships the folders the code needs", () => {
   assert.deepEqual(manifest.esmodules, ["scripts/main.js"]);
   for (const style of manifest.styles) assert.ok(read(style).length > 0, style);
 });
+
+test("the optional Debug Recorder helper is loaded and its breadcrumb keys are area.action", () => {
+  assert.match(read("scripts/main.js"), /from "\.\/debug-recorder\.js"/);
+  const bad = [];
+  for (const file of list("scripts", ".js")) {
+    for (const [, key] of read(file).matchAll(/\bcrumb\("([^"]*)"/g)) {
+      if (!/^[a-z][A-Za-z]*(\.[a-z][A-Za-z]*)+$/.test(key)) bad.push(`${file}: ${key}`);
+    }
+  }
+  assert.deepEqual(bad, []);
+});

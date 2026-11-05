@@ -11,6 +11,7 @@
  */
 import { MODULE_ID, t, isResponsibleGM } from "./util.js";
 import { shouldAskToEnd, movedBackwards } from "./order.js";
+import { crumb, errorName } from "./debug-recorder.js";
 
 /** Is the combatant a hostile? */
 export function isHostile(combatant) {
@@ -70,7 +71,10 @@ let asking = false;
 
 /** Called after anything that can change who is standing. Asks the GM to end the encounter when the last hostile falls. */
 export const checkEncounter = foundry.utils.debounce(() => {
-  check().catch(err => console.error(`${MODULE_ID} | end-of-encounter check failed`, err));
+  check().catch(err => {
+    console.error(`${MODULE_ID} | end-of-encounter check failed`, err);
+    crumb("error.caught", { area: "encounterCheck", error: errorName(err) });
+  });
 }, 400);
 
 async function check() {
@@ -81,6 +85,7 @@ async function check() {
   const before = lastStanding.get(combat.id);
   lastStanding.set(combat.id, standing);
   if (!shouldAskToEnd(before, standing, total) || asking) return;
+  crumb("encounter.ask", { round: combat.round, turn: combat.turn, hostiles: total });
   asking = true;
   try {
     const DialogV2 = foundry.applications.api.DialogV2;
@@ -92,7 +97,9 @@ async function check() {
       rejectClose: false
     });
     // Still the same combat, still nobody standing? Then end it (deleting the combat is what core's End Combat does).
-    if (end && game.combats.has(combat.id) && countHostiles(combat.combatants).standing === 0) await combat.delete();
+    const still = game.combats.has(combat.id) && countHostiles(combat.combatants).standing === 0;
+    crumb("encounter.answer", { end: !!end, ended: !!end && still });
+    if (end && still) await combat.delete();
   } finally {
     asking = false;
   }
@@ -133,19 +140,29 @@ export function skipDeadTurn(combat, options = {}) {
   if (movedBackwards(before, now, options?.direction)) return;
   if (!combat.started || !combat.combatant || !isDead(combat.combatant)) return;
   if (!combat.combatants.some(c => !isDead(c))) return;
+  crumb("skipDead.start", { round: combat.round, turn: combat.turn });
   skipping = true;
   // After the update that brought the turn here has finished.
   setTimeout(async () => {
     try {
       let steps = combat.turns.length;
+      let skipped = 0;
       while (steps-- > 0 && game.combats.has(combat.id) && combat.combatant && isDead(combat.combatant)
         && combat.combatants.some(c => !isDead(c))) {
         await combat.nextTurn();
+        skipped++;
       }
+      crumb("skipDead.done", { skipped, round: combat.round, turn: combat.turn });
     } catch (err) {
       console.error(`${MODULE_ID} | skipping a dead combatant's turn failed`, err);
+      crumb("error.caught", { area: "skipDead", error: errorName(err) });
     } finally {
       skipping = false;
     }
   }, 0);
+}
+
+/** The encounter state for the Debug Recorder snapshot: counts and flags only. */
+export function encounterDebugState() {
+  return { trackedCombats: lastStanding.size, asking, skipping, positionsTracked: lastPosition.size };
 }
