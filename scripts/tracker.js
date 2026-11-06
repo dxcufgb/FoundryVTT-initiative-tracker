@@ -1068,7 +1068,12 @@ export function trackerDebugState() {
     lastRender,
     thumbnailsCached: thumbnails.size,
     activeFlames: activeFlames(),
-    revealed: { loaded: !!revealedCache, combats: revealedCache?.size ?? 0, combatants: revealedTotal },
+    // Reveals are kept after the GM hides a combatant, so the count of revealed combatants is GM only.
+    revealed: {
+      loaded: !!revealedCache,
+      combats: revealedCache?.size ?? 0,
+      ...(game.user.isGM ? { combatants: revealedTotal } : {})
+    },
     combat: combat ? {
       started: !!combat.started,
       round: combat.round ?? 0,
