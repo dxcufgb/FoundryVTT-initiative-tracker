@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
 - Optional support for Dxcufgb's Debug Recorder: while a GM records, the tracker adds its state (counts and
   settings only, no names) and the main steps it takes to the bug report file. Nothing changes without the recorder.
