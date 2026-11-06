@@ -11,7 +11,8 @@
  */
 import { MODULE_ID, TEMPLATE_PATH, escapeHTML, setting, clamp, t } from "./util.js";
 import { countHostiles, isDown, isDead, JUMP_OPTION } from "./encounter.js";
-import { spawnFlames, attachFlameLayer } from "./flames.js";
+import { spawnFlames, attachFlameLayer, activeFlames } from "./flames.js";
+import { crumb, errorName } from "./debug-recorder.js";
 import { windowTurns, padWindow, arcLayout, arcSideCount, arcExits, healthFraction, clampAnchor, sizeFactor, snapToCentre, nextShown, isRevealed } from "./order.js";
 
 const ELEMENT_ID = "dxit-tracker";
@@ -28,6 +29,9 @@ let lastDead = null;
 let dragging = false;
 const thumbnails = new Map();
 const MOVE_MS = 380;
+/** For the Debug Recorder snapshot: renders done on this client and what the last one showed. */
+let renderCount = 0;
+let lastRender = null;
 
 /* -------------------------------------------- */
 /*  Data                                        */
@@ -78,7 +82,10 @@ const saveRevealed = foundry.utils.debounce(() => {
   }
   const data = {};
   for (const [id, ids] of revealedCache) if (game.combats.has(id) && ids.size) data[id] = [...ids];
-  game.settings.set(MODULE_ID, "revealed", data).catch(err => console.error(`${MODULE_ID} | saving reveals failed`, err));
+  game.settings.set(MODULE_ID, "revealed", data).catch(err => {
+    console.error(`${MODULE_ID} | saving reveals failed`, err);
+    crumb("error.caught", { area: "revealSave", error: errorName(err) });
+  });
 }, 200);
 
 /**
@@ -95,17 +102,20 @@ export function visibleCombatants(combat) {
   if (!combat) return [];
   const state = { started: !!combat.started, round: combat.round ?? 0, turn: combat.turn ?? null };
   const revealed = revealedSet(combat.id);
-  let grew = false;
+  let grew = 0;
   const list = turns.filter((c, index) => {
     // Hidden with the combat tracker's eye icon: never shown to players (their own always are).
     if (!c.visible) return false;
     if (c.isOwner || isAlly(c) || revealed.has(c.id)) return true;
     if (!isRevealed({ index, known: false }, state)) return false;
     revealed.add(c.id);
-    grew = true;
+    grew++;
     return true;
   });
-  if (grew) saveRevealed();
+  if (grew) {
+    crumb("reveal.add", { count: grew, round: state.round, turn: state.turn });
+    saveRevealed();
+  }
   return list;
 }
 
@@ -534,6 +544,11 @@ async function render() {
     && visibleCombatants(combat).length > 0
     && (combat.started || game.user.isGM);
   if (!show) {
+    if (element) {
+      const reason = !setting("enabled") ? "disabled" : !combat ? "noCombat" : !combat.started && !game.user.isGM ? "notStarted" : "noTurns";
+      crumb("tracker.hide", { reason });
+    }
+    lastRender = null;
     element?.remove();
     element = null;
     lastDefeated = null;
@@ -559,6 +574,17 @@ async function render() {
   place();
   animateChips(before, fresh);
   slideArcChips(before, leaving, fresh);
+  renderCount++;
+  lastRender = {
+    layout: ["ribbon", "pill", "arc"].includes(setting("layout")) ? setting("layout") : "other",
+    vertical: context.vertical,
+    chips: context.entries.filter(e => !e.divider && !e.slot).length,
+    slots: context.entries.filter(e => e.slot).length,
+    more: context.more,
+    expanded,
+    started: !!combat.started
+  };
+  crumb("tracker.render", { fresh, ...lastRender });
   Hooks.callAll("dxcufgbsInitiativeTrackerRender", element, combat, context);
 }
 
@@ -663,17 +689,25 @@ function chipRects() {
 function markNewDefeats(combat, fresh) {
   const now = new Set(combat.combatants.filter(c => c.isDefeated || isDown(c)).map(c => c.id));
   if (!fresh && lastDefeated) {
+    let fallen = 0;
     for (const id of now) {
       if (lastDefeated.has(id)) continue;
-      element.querySelector(`.dxit-chip[data-combatant-id="${CSS.escape(id)}"]`)?.classList.add("dxit-chip--dying");
+      const chip = element.querySelector(`.dxit-chip[data-combatant-id="${CSS.escape(id)}"]`);
+      if (!chip) continue;
+      chip.classList.add("dxit-chip--dying");
+      fallen++;
     }
+    // Only chips this user is shown, so a player's recording counts no hidden combatant.
+    if (fallen) crumb("tracker.fallen", { count: fallen });
   }
   lastDefeated = now;
 
   // Flames for a combatant that has just died, on its chip if the chip is shown.
   const dead = new Set(combat.combatants.filter(c => isDead(c)).map(c => c.id));
   if (!fresh && lastDead && setting("deathFlames")) {
-    for (const id of dead) if (!lastDead.has(id)) spawnFlames(element, id);
+    let burning = 0;
+    for (const id of dead) if (!lastDead.has(id) && spawnFlames(element, id)) burning++;
+    if (burning) crumb("flames.spawn", { count: burning });
   }
   lastDead = dead;
 }
@@ -816,13 +850,17 @@ function animateChips(before, fresh) {
 
 /** Re-renders the tracker, at most a few times a second. */
 export const refresh = foundry.utils.debounce(() => {
-  render().catch(err => console.error(`${MODULE_ID} | render failed`, err));
+  render().catch(err => {
+    console.error(`${MODULE_ID} | render failed`, err);
+    crumb("error.caught", { area: "render", error: errorName(err) });
+  });
 }, 50);
 
 /** Shows or hides the tracker for this user (the "Show the tracker" setting). */
 export async function toggle(force) {
   const value = typeof force === "boolean" ? force : !game.settings.get(MODULE_ID, "enabled");
   await game.settings.set(MODULE_ID, "enabled", value);
+  crumb("tracker.toggle", { enabled: value });
   return value;
 }
 
@@ -865,7 +903,9 @@ async function onClick(event) {
   if (!combatant) return;
   event.preventDefault();
   const token = combatant.token?.object;
-  if (!token || !token.visible || combatant.sceneId !== canvas.scene?.id) return;
+  const pan = !!token?.visible && combatant.sceneId === canvas.scene?.id;
+  crumb("chip.click", { panned: pan, controlled: pan && combatant.isOwner });
+  if (!pan) return;
   if (combatant.isOwner) token.control({ releaseOthers: true });
   return canvas.animatePan(token.center);
 }
@@ -914,19 +954,27 @@ function goToTurn(combatant) {
   if (!game.user.isGM || !combat?.started || !combatant) return;
   const turn = combat.turns.findIndex(c => c.id === combatant.id);
   if (turn < 0 || turn === combat.turn) return;
+  crumb("tracker.goToTurn", { round: combat.round, fromTurn: combat.turn, toTurn: turn });
   return combat.update({ turn }, { [MODULE_ID]: { [JUMP_OPTION]: true } });
 }
 
 function onDoubleClick(event) {
-  if (event.target.closest(".dxit-grip")) return game.settings.set(MODULE_ID, "position", null);
+  if (event.target.closest(".dxit-grip")) {
+    crumb("tracker.position", { reset: true });
+    return game.settings.set(MODULE_ID, "position", null);
+  }
   const combatant = combatantOf(event.target);
   const actor = combatant?.actor;
   if (actor?.testUserPermission(game.user, "OBSERVER")) actor.sheet.render(true);
 }
 
+/** The tracker's buttons (data-action), for breadcrumbs. */
+const ACTIONS = ["expand", "previous", "next", "endTurn", "start", "rollNPCs", "popout"];
+
 async function onAction(event, action) {
   event.preventDefault();
   const combat = trackedCombat();
+  crumb("tracker.action", { action: ACTIONS.includes(action) ? action : "other", gm: game.user.isGM });
   switch (action) {
     case "expand":
       expanded = !expanded;
@@ -991,10 +1039,55 @@ function onGripDown(event) {
     dragging = false;
     removeGuides();
     element?.classList.remove("dxit--dragging");
-    if (moved) game.settings.set(MODULE_ID, "position", current);
+    if (moved) {
+      crumb("tracker.position", { reset: false, centerX: !!current.centerX, centerY: !!current.centerY });
+      game.settings.set(MODULE_ID, "position", current);
+    }
   };
   element.classList.add("dxit--dragging");
   window.addEventListener("pointermove", move);
   window.addEventListener("pointerup", up);
   window.addEventListener("pointercancel", up);
+}
+
+/* -------------------------------------------- */
+/*  Debug Recorder                              */
+/* -------------------------------------------- */
+
+/** The tracker's runtime state for the Debug Recorder snapshot: counts and flags only, never names or images. */
+export function trackerDebugState() {
+  const combat = trackedCombat();
+  const turns = combat?.turns ?? [];
+  let revealedTotal = 0;
+  for (const ids of revealedCache?.values() ?? []) revealedTotal += ids.size;
+  return {
+    shown: !!element?.isConnected,
+    expanded,
+    dragging,
+    renderCount,
+    lastRender,
+    thumbnailsCached: thumbnails.size,
+    activeFlames: activeFlames(),
+    // Reveals are kept after the GM hides a combatant, so the count of revealed combatants is GM only.
+    revealed: {
+      loaded: !!revealedCache,
+      combats: revealedCache?.size ?? 0,
+      ...(game.user.isGM ? { combatants: revealedTotal } : {})
+    },
+    combat: combat ? {
+      started: !!combat.started,
+      round: combat.round ?? 0,
+      turn: combat.turn ?? null,
+      // The counts include combatants hidden from players, so they are left out of a player's snapshot.
+      ...(game.user.isGM ? {
+        turns: turns.length,
+        hiddenInTracker: turns.filter(c => !c.visible).length,
+        defeated: turns.filter(c => c.isDefeated).length,
+        down: turns.filter(c => isDown(c)).length,
+        dead: turns.filter(c => isDead(c)).length,
+        hostiles: countHostiles(turns)
+      } : {})
+    } : null,
+    combatsInWorld: game.combats?.size ?? 0
+  };
 }

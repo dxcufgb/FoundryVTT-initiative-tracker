@@ -35,6 +35,11 @@ settings, so every player sets it up their own way. No build step, no npm depend
 - `scripts/order.js` – pure helpers: `windowTurns` (current turn at the start / centre / end or fixed order, round
   dividers, limit with +N, each turn's offset from the current one), `arcLayout` (semicircle geometry), `sizeFactor`
   (equal or tapering sizes), `orderNumbers`, `healthFraction`, `clampAnchor`. Tested in Node.
+- `scripts/debug-recorder.js` – optional integration with Dxcufgb's Debug Recorder (`dxcufgbs-debug-recorder`, not a
+  dependency): registers once (its `dxcufgbs-debug-recorder.ready` hook, or its `api` already there at `ready`) with
+  the snapshot built in `main.js` (`trackerDebugState`, `badgeCount`, `encounterDebugState`); `crumb(key, data)` leaves
+  a breadcrumb only while it records, and swallows any recorder error. `errorName(err)` gives an error's type for a
+  breadcrumb, never its message.
 - `templates/tracker.hbs`, `styles/initiative-tracker.css` – everything sized from `--dxit-size`, coloured from
   `--dxit-accent`, `--dxit-bg-alpha` and per chip `--dxit-ring`.
 - `tests/*.test.mjs` – node:test checks run by CI through `.github/foundry-module.json` (`lint`). Not shipped.
@@ -92,6 +97,10 @@ settings, so every player sets it up their own way. No build step, no npm depend
   placing them after a render would animate them from the corner. All movement is the tracker's own FLIP.
 - The round line has an identity (`round:<before>|<after>`) so it slides and turns with the tokens.
 - Tooltip text is HTML: names are passed through `escapeHTML` before they go into it.
+- Debug-recorder integration is optional: without the recorder the module works exactly the same. Snapshot and
+  breadcrumb data must never contain names, free text, image paths or URLs: only counts, booleans, numbers and the
+  module's own enums (layout, button actions). Counts that include combatants hidden from players are only in a GM's
+  snapshot, and the snapshot never calls `visibleCombatants` (it records reveals for players).
 - Stable names (used by other modules and macros): API members, the hook `dxcufgbsInitiativeTrackerRender`, setting
   ids, the element id `dxit-tracker` and its `dxit-*` classes.
 

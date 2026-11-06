@@ -19,12 +19,13 @@
  * Hook: Hooks.on("dxcufgbsInitiativeTrackerRender", (element, combat, context) => …) after every render of the
  * tracker on this client; `element` is the tracker's HTMLElement.
  */
-import { MODULE_ID } from "./util.js";
+import { MODULE_ID, isResponsibleGM } from "./util.js";
 import { registerSettings, resetLook, LOOK_DEFAULTS } from "./settings.js";
-import { refresh, toggle, place, markHovered, trackedCombat, visibleCombatants, forgetRevealed } from "./tracker.js";
-import { refreshBadges, clearBadges } from "./badges.js";
+import { refresh, toggle, place, markHovered, trackedCombat, visibleCombatants, forgetRevealed, trackerDebugState } from "./tracker.js";
+import { refreshBadges, clearBadges, badgeCount } from "./badges.js";
 import { orderNumbers } from "./order.js";
-import { checkEncounter, primeEncounter, forgetEncounter, skipDeadTurn } from "./encounter.js";
+import { checkEncounter, primeEncounter, forgetEncounter, skipDeadTurn, encounterDebugState, JUMP_OPTION } from "./encounter.js";
+import { registerDebugRecorder, crumb } from "./debug-recorder.js";
 
 function refreshAll() {
   refresh();
@@ -67,6 +68,15 @@ Hooks.once("init", () => {
     resetLook,
     LOOK_DEFAULTS
   };
+
+  // Optional: Dxcufgb's Debug Recorder (no dependency; does nothing without it).
+  registerDebugRecorder(() => ({
+    isGM: game.user.isGM,
+    responsibleGM: isResponsibleGM(),
+    tracker: trackerDebugState(),
+    badges: badgeCount(),
+    encounter: encounterDebugState()
+  }));
 });
 
 Hooks.once("ready", () => {
@@ -109,13 +119,24 @@ for (const hook of ["createActiveEffect", "updateActiveEffect", "deleteActiveEff
 // The last hostile falling: defeated, at 0 on its first bar, removed from the fight, or no longer hostile.
 for (const hook of ["updateCombatant", "deleteCombatant", "createCombatant", "updateToken", "updateActor",
   "createActiveEffect", "deleteActiveEffect"]) Hooks.on(hook, () => checkEncounter());
-Hooks.on("combatStart", combat => primeEncounter(combat));
+Hooks.on("combatStart", combat => {
+  // The number of turns includes combatants hidden from players: GM only.
+  crumb("combat.start", game.user.isGM ? { turns: combat?.turns?.length ?? 0 } : {});
+  primeEncounter(combat);
+});
 // A dead combatant's turn came up: the responsible GM moves on (setting "skipDead").
 Hooks.on("updateCombat", (combat, changes, options) => {
-  if ("turn" in changes || "round" in changes) skipDeadTurn(combat, options);
+  if (!("turn" in changes || "round" in changes)) return;
+  if (combat === trackedCombat()) {
+    const direction = Number(options?.direction);
+    crumb("combat.turn", { round: combat.round, turn: combat.turn, direction: Number.isFinite(direction) ? direction : 0,
+      jump: !!options?.[MODULE_ID]?.[JUMP_OPTION] });
+  }
+  skipDeadTurn(combat, options);
 });
 Hooks.on("combatStart", combat => skipDeadTurn(combat));
 Hooks.on("deleteCombat", combat => {
+  crumb("combat.delete");
   forgetEncounter(combat);
   forgetRevealed(combat);
 });

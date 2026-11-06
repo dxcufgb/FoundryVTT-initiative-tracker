@@ -68,3 +68,98 @@ test("module.json ships the folders the code needs", () => {
   assert.deepEqual(manifest.esmodules, ["scripts/main.js"]);
   for (const style of manifest.styles) assert.ok(read(style).length > 0, style);
 });
+
+test("the optional Debug Recorder helper is loaded and its breadcrumb keys are area.action", () => {
+  assert.match(read("scripts/main.js"), /from "\.\/debug-recorder\.js"/);
+  const bad = [];
+  for (const file of list("scripts", ".js")) {
+    for (const [, key] of read(file).matchAll(/\bcrumb\("([^"]*)"/g)) {
+      if (!/^[a-z][A-Za-z]*(\.[a-z][A-Za-z]*)+$/.test(key)) bad.push(`${file}: ${key}`);
+    }
+  }
+  assert.deepEqual(bad, []);
+});
+
+test("Debug Recorder: crumb records only while recording, and error names are a fixed list", async () => {
+  const saved = { Hooks: globalThis.Hooks, game: globalThis.game };
+  const calls = [];
+  let recording = false;
+  const rec = {
+    register: () => {},
+    isRecording: () => recording,
+    breadcrumb: (...args) => calls.push(args)
+  };
+  try {
+    globalThis.Hooks = { once: () => {} };
+    globalThis.game = { modules: { get: id => (id === "dxcufgbs-debug-recorder" ? { api: rec } : undefined) } };
+    const { registerDebugRecorder, crumb, errorName } = await import("../scripts/debug-recorder.js");
+    registerDebugRecorder(() => ({}));
+    let evaluated = false;
+    crumb("test.idle", () => {
+      evaluated = true;
+      return {};
+    });
+    assert.equal(calls.length, 0);
+    assert.equal(evaluated, false);
+    recording = true;
+    crumb("test.live", { count: 1 });
+    assert.deepEqual(calls, [[manifest.id, "test.live", { count: 1 }]]);
+    rec.breadcrumb = () => {
+      throw new Error("recorder bug");
+    };
+    assert.doesNotThrow(() => crumb("test.broken"));
+    assert.equal(errorName(new TypeError("x")), "TypeError");
+    const custom = new Error("x");
+    custom.name = "Scene of the Goblin King";
+    assert.equal(errorName(custom), "Error");
+    assert.equal(errorName("text"), "Error");
+  } finally {
+    globalThis.Hooks = saved.Hooks;
+    globalThis.game = saved.game;
+  }
+});
+
+test("Debug Recorder: a failed register() (false or a throw) leaves the recorder unset and is retried", async t => {
+  t.mock.method(console, "warn", () => {});
+  const saved = { Hooks: globalThis.Hooks, game: globalThis.game };
+  const hooks = {};
+  const attempts = [];
+  const calls = [];
+  let outcome = false;
+  const rec = {
+    register: id => {
+      attempts.push(id);
+      if (outcome instanceof Error) throw outcome;
+      return outcome;
+    },
+    isRecording: () => true,
+    breadcrumb: (...args) => calls.push(args)
+  };
+  const fire = (name, ...args) => (hooks[name] ?? []).forEach(fn => fn(...args));
+  try {
+    globalThis.Hooks = { once: (name, fn) => (hooks[name] ??= []).push(fn) };
+    globalThis.game = { modules: { get: id => (id === "dxcufgbs-debug-recorder" ? { api: rec } : undefined) } };
+    const { registerDebugRecorder, crumb } = await import("../scripts/debug-recorder.js?register-fails");
+    registerDebugRecorder(() => ({}));
+    crumb("test.unset");
+    assert.equal(attempts.length, 1);
+    assert.equal(calls.length, 0, "register() returned false: the recorder is not kept");
+
+    outcome = new Error("recorder bug");
+    assert.doesNotThrow(() => fire("dxcufgbs-debug-recorder.ready", rec));
+    crumb("test.unset");
+    assert.equal(attempts.length, 2, "retried on the recorder's ready hook");
+    assert.equal(calls.length, 0, "register() threw: the recorder is not kept");
+
+    outcome = true;
+    fire("ready");
+    assert.equal(attempts.length, 3, "retried on ready");
+    crumb("test.live", { count: 1 });
+    assert.deepEqual(calls, [[manifest.id, "test.live", { count: 1 }]]);
+    registerDebugRecorder(() => ({}));
+    assert.equal(attempts.length, 3, "a successful registration is not repeated");
+  } finally {
+    globalThis.Hooks = saved.Hooks;
+    globalThis.game = saved.game;
+  }
+});
