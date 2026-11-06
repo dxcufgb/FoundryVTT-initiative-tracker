@@ -79,3 +79,42 @@ test("the optional Debug Recorder helper is loaded and its breadcrumb keys are a
   }
   assert.deepEqual(bad, []);
 });
+
+test("Debug Recorder: crumb records only while recording, and error names are a fixed list", async () => {
+  const saved = { Hooks: globalThis.Hooks, game: globalThis.game };
+  const calls = [];
+  let recording = false;
+  const rec = {
+    register: () => {},
+    isRecording: () => recording,
+    breadcrumb: (...args) => calls.push(args)
+  };
+  try {
+    globalThis.Hooks = { once: () => {} };
+    globalThis.game = { modules: { get: id => (id === "dxcufgbs-debug-recorder" ? { api: rec } : undefined) } };
+    const { registerDebugRecorder, crumb, errorName } = await import("../scripts/debug-recorder.js");
+    registerDebugRecorder(() => ({}));
+    let evaluated = false;
+    crumb("test.idle", () => {
+      evaluated = true;
+      return {};
+    });
+    assert.equal(calls.length, 0);
+    assert.equal(evaluated, false);
+    recording = true;
+    crumb("test.live", { count: 1 });
+    assert.deepEqual(calls, [[manifest.id, "test.live", { count: 1 }]]);
+    rec.breadcrumb = () => {
+      throw new Error("recorder bug");
+    };
+    assert.doesNotThrow(() => crumb("test.broken"));
+    assert.equal(errorName(new TypeError("x")), "TypeError");
+    const custom = new Error("x");
+    custom.name = "Scene of the Goblin King";
+    assert.equal(errorName(custom), "Error");
+    assert.equal(errorName("text"), "Error");
+  } finally {
+    globalThis.Hooks = saved.Hooks;
+    globalThis.game = saved.game;
+  }
+});
