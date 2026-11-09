@@ -28,6 +28,11 @@ export function isDown(combatant) {
   if (combatant.isDefeated) return false;
   const statuses = combatant.actor?.statuses;
   if (statuses?.has && DOWN_STATUSES.some(id => statuses.has(id))) return true;
+  return atZero(combatant);
+}
+
+/** Is the combatant's token's first bar (usually HP) at 0? */
+function atZero(combatant) {
   const bar = combatant.token?.getBarAttribute?.("bar1");
   const value = Number(bar?.value);
   const max = Number(bar?.max);
@@ -35,13 +40,14 @@ export function isDown(combatant) {
 }
 
 /**
- * Has the combatant died: marked defeated, the Dead status, or an NPC (no player owner) down at 0. A player
- * character at 0 is dying, not dead (death saves), so it doesn't count until it is marked defeated or dead.
+ * Has the combatant died: marked defeated, the Dead status, or an NPC (no player owner) at 0 on its first bar. A
+ * player character at 0 is dying, not dead (death saves), so it doesn't count until it is marked defeated or dead.
+ * Unconscious alone is not dead: an NPC knocked out (or asleep) with HP left keeps its turn.
  */
 export function isDead(combatant) {
   if (combatant.isDefeated) return true;
   if (combatant.actor?.statuses?.has?.("dead")) return true;
-  return !combatant.actor?.hasPlayerOwner && isDown(combatant);
+  return !combatant.actor?.hasPlayerOwner && atZero(combatant);
 }
 
 /** Is the combatant still standing: not defeated and not down? */
