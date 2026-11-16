@@ -28,7 +28,7 @@ settings, so every player sets it up their own way. No build step, no npm depend
   0), the tracker's counter (only combatants the user can see), and the responsible GM's "end the encounter?" dialog
   when the last standing hostile falls (`checkEncounter`, debounced; asks once per fall, `askEndEncounter` world
   setting; ending deletes the combat like core's End Combat). `skipDeadTurn`: the responsible GM moves past dead
-  combatants' turns (`isDead`; never a player character at 0), one `nextTurn` at a time; not on a step back
+  combatants' turns (`isDead`: defeated, Dead, or an NPC at 0 on bar1 — Unconscious alone is not dead; never a player character at 0), one `nextTurn` at a time; not on a step back
   (`movedBackwards`) or Go to Turn from the tracker's context menu (update option `{[MODULE_ID]: {jumpToTurn: true}}`). World setting `skipDead`.
 - `scripts/badges.js` – the numbers on tokens: a PIXI container per token, child of the Token object, re-attached from
   `drawToken` because a token redraw destroys its children.

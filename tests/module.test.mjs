@@ -116,6 +116,7 @@ test("Debug Recorder: crumb records only while recording, and error names are a 
   } finally {
     globalThis.Hooks = saved.Hooks;
     globalThis.game = saved.game;
+    globalThis.foundry = saved.foundry;
   }
 });
 
@@ -161,5 +162,32 @@ test("Debug Recorder: a failed register() (false or a throw) leaves the recorder
   } finally {
     globalThis.Hooks = saved.Hooks;
     globalThis.game = saved.game;
+    globalThis.foundry = saved.foundry;
+  }
+});
+
+test("an unconscious NPC with HP left is not dead, so its turn isn't skipped", async () => {
+  const saved = { Hooks: globalThis.Hooks, game: globalThis.game, foundry: globalThis.foundry };
+  try {
+    globalThis.Hooks = { once: () => {}, on: () => {} };
+    globalThis.foundry = { utils: { debounce: fn => fn } };
+    globalThis.game = { modules: { get: () => undefined } };
+    const { isDead, isDown } = await import("../scripts/encounter.js?is-dead");
+    const npc = (statuses, value, { owned = false, defeated = false } = {}) => ({
+      isDefeated: defeated,
+      actor: { hasPlayerOwner: owned, statuses: new Set(statuses) },
+      token: { getBarAttribute: () => ({ value, max: 10 }) }
+    });
+    assert.equal(isDead(npc(["unconscious"], 5)), false);
+    assert.equal(isDown(npc(["unconscious"], 5)), true);
+    assert.equal(isDead(npc(["unconscious"], 0)), true);
+    assert.equal(isDead(npc([], 0)), true);
+    assert.equal(isDead(npc(["dead"], 5)), true);
+    assert.equal(isDead(npc([], 5, { defeated: true })), true);
+    assert.equal(isDead(npc(["unconscious"], 0, { owned: true })), false);
+  } finally {
+    globalThis.Hooks = saved.Hooks;
+    globalThis.game = saved.game;
+    globalThis.foundry = saved.foundry;
   }
 });

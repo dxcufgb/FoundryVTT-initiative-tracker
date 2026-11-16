@@ -1,0 +1,27 @@
+name: Bug report with a debug recording
+description: Report a bug by attaching the file from Dxcufgb's Debug Recorder. The file is the whole report.
+title: "[Bug]: "
+labels: [bug, debug-recording]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! A recording from **Dxcufgb's Debug Recorder** already holds the Foundry VTT, system, browser and module versions and the errors, so it is all this form needs.
+
+        1. Install **Dxcufgb's Debug Recorder** with this manifest URL: `https://github.com/dxcufgb/FoundryVTT-debug-recorder/releases/latest/download/module.json`, then enable it in your world under **Manage Modules**.
+        2. As GM, open it from **Game Settings → Configure Settings → Dxcufgb's Debug Recorder → Open the recorder**, tick this module and click **Start recording**.
+        3. Do what makes the bug happen, then click **Stop recording**. Under **What happened** you can write the steps, what you expected and what happened instead.
+        4. Tick the recording in the list, click **Download selected** and attach the `dxcufgbs-debug-….json` (or `.zip`) file below.
+
+        The recorder removes names, chat and journal text, the world's title and the server's address, but it can miss some (very short names, for example), so open the downloaded file and check it before you attach it. More about the recorder on [its GitHub page](https://github.com/dxcufgb/FoundryVTT-debug-recorder).
+
+        Can't use the recorder? Choose **Bug report** instead.
+
+  - type: upload
+    id: recording
+    attributes:
+      label: Debug recording file
+      description: The `dxcufgbs-debug-….json` or `.zip` file downloaded from Dxcufgb's Debug Recorder.
+    validations:
+      required: true
+      accept: ".json,.zip"
