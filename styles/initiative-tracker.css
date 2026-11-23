@@ -297,6 +297,8 @@
    side), and the arc curves away from the box's middle: the grip, counters and buttons line up with the ends. */
 .dxit--layout-arc :is(.dxit-frame, .dxit-main, .dxit-actions) { align-items: flex-start; }
 .dxit--layout-arc.dxit--arc-flip :is(.dxit-frame, .dxit-main, .dxit-actions) { align-items: flex-end; }
+/* Vertical: the buttons under the semicircle stay centred under it. */
+.dxit--vertical.dxit--layout-arc :is(.dxit-frame, .dxit-actions) { align-items: center; }
 
 /* A combatant defeated since the last render: fades to grey, then the skull drops in */
 .dxit-chip--dying .dxit-portrait { animation: dxit-grey 800ms ease forwards; }
