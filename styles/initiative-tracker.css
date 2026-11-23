@@ -327,6 +327,11 @@
 }
 .dxit--vertical .dxit-grip { width: auto; height: 12px; }
 .dxit--vertical .dxit-grip i { transform: rotate(90deg); }
+/* Semicircle: the grip keeps its full-length drag area, its icon sits at the arc's ends' side like the counters. */
+.dxit--layout-arc .dxit-grip { place-items: start center; }
+.dxit--layout-arc.dxit--arc-flip .dxit-grip { place-items: end center; }
+.dxit--vertical.dxit--layout-arc .dxit-grip { place-items: center start; }
+.dxit--vertical.dxit--layout-arc.dxit--arc-flip .dxit-grip { place-items: center end; }
 .dxit-grip { opacity: 0.35; }
 .dxit-frame:hover .dxit-grip,
 .dxit--dragging .dxit-grip { opacity: 0.8; }
