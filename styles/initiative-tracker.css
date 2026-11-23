@@ -293,6 +293,12 @@
 .dxit--vertical .dxit-actions { flex-direction: column; }
 .dxit--horizontal.dxit--layout-arc .dxit-frame { flex-direction: row; }
 .dxit--horizontal.dxit--layout-arc .dxit-controls { flex-direction: column; }
+/* The semicircle's ends are on one side of its box (horizontal: the top, vertical: the left; flipped: the other
+   side), and the arc curves away from the box's middle: the grip, counters and buttons line up with the ends. */
+.dxit--layout-arc :is(.dxit-frame, .dxit-main, .dxit-actions) { align-items: flex-start; }
+.dxit--layout-arc.dxit--arc-flip :is(.dxit-frame, .dxit-main, .dxit-actions) { align-items: flex-end; }
+/* Vertical: the buttons under the semicircle stay centred under it. */
+.dxit--vertical.dxit--layout-arc :is(.dxit-frame, .dxit-actions) { align-items: center; }
 
 /* A combatant defeated since the last render: fades to grey, then the skull drops in */
 .dxit-chip--dying .dxit-portrait { animation: dxit-grey 800ms ease forwards; }
@@ -321,6 +327,11 @@
 }
 .dxit--vertical .dxit-grip { width: auto; height: 12px; }
 .dxit--vertical .dxit-grip i { transform: rotate(90deg); }
+/* Semicircle: the grip keeps its full-length drag area, its icon sits at the arc's ends' side like the counters. */
+.dxit--layout-arc .dxit-grip { place-items: start center; }
+.dxit--layout-arc.dxit--arc-flip .dxit-grip { place-items: end center; }
+.dxit--vertical.dxit--layout-arc .dxit-grip { place-items: center start; }
+.dxit--vertical.dxit--layout-arc.dxit--arc-flip .dxit-grip { place-items: center end; }
 .dxit-grip { opacity: 0.35; }
 .dxit-frame:hover .dxit-grip,
 .dxit--dragging .dxit-grip { opacity: 0.8; }
