@@ -526,7 +526,8 @@ function applyLook() {
     `dxit--${vertical ? "vertical" : "horizontal"}`,
     `dxit--layout-${setting("layout")}`,
     `dxit--shape-${setting("shape")}`,
-    `dxit--theme-${setting("theme")}`
+    `dxit--theme-${setting("theme")}`,
+    ...(setting("layout") === "arc" && setting("arcFlip") ? ["dxit--arc-flip"] : [])
   ].join(" ");
   element.style.setProperty("--dxit-size", `${clamp(setting("size"), 24, 96, 36)}px`);
   element.style.setProperty("--dxit-accent", Color.from(setting("accent") || "#ff6400").css);
